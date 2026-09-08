@@ -1131,3 +1131,67 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
+
+/* =========================
+   RECORD ROW TOUCH / CLICK
+   1st touch  = Yellow
+   2nd touch = Remove Yellow
+   No 2nd touch = Auto remove after 5 sec
+========================= */
+
+document.addEventListener("click", function (e) {
+
+  const row = e.target.closest("table.entries tbody tr");
+
+  if (!row) return;
+
+  // Ignore clicks on buttons, checkboxes, inputs etc.
+  if (
+    e.target.closest("button") ||
+    e.target.closest("input") ||
+    e.target.closest("select") ||
+    e.target.closest("a")
+  ) {
+    return;
+  }
+
+  // If this row already has color
+  if (row.classList.contains("selected-row")) {
+
+    // Second touch/click = remove color
+    row.classList.remove("selected-row");
+
+    if (row._removeTimer) {
+      clearTimeout(row._removeTimer);
+      row._removeTimer = null;
+    }
+
+    return;
+  }
+
+  // Remove selection from other rows
+  document
+    .querySelectorAll("table.entries tbody tr.selected-row")
+    .forEach(function (otherRow) {
+
+      otherRow.classList.remove("selected-row");
+
+      if (otherRow._removeTimer) {
+        clearTimeout(otherRow._removeTimer);
+        otherRow._removeTimer = null;
+      }
+    });
+
+  // First touch/click = add color
+  row.classList.add("selected-row");
+
+  // Automatically remove after 5 seconds
+  row._removeTimer = setTimeout(function () {
+
+    row.classList.remove("selected-row");
+    row._removeTimer = null;
+
+  }, 5000);
+
+});
+
