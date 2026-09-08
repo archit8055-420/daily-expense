@@ -371,12 +371,19 @@ body {
 .table-wrap {
   background: #fff;
   border-radius: 10px;
+
+  /* Only 5 records visible */
   max-height: 220px;
+
   overflow-x: auto;
   overflow-y: auto;
+
   border: 1px solid #94a3b8;
   width: 100%;
   -webkit-overflow-scrolling: touch;
+
+  /* Keeps table scrolling separate */
+  flex-shrink: 0;
 }
 
 table.entries {
@@ -401,6 +408,11 @@ table.entries td {
   padding: 10px;
   border-bottom: 1px solid #e2e8f0;
   white-space: nowrap;
+}
+
+/* Keep approximately 5 data records visible */
+table.entries tbody tr {
+  height: 40px;
 }
 
 .col-date {
@@ -481,6 +493,9 @@ table.entries td {
   align-items: center;
   margin-top: 15px;
   gap: 12px;
+
+  /* Always keep bottom area outside table scroll */
+  flex-shrink: 0;
 }
 
 .total-box {
@@ -747,10 +762,19 @@ table.entries td {
   /* TABLE */
 
   .table-wrap {
-    max-height: 300px;
+    /*
+      Mobile: show approximately 5 records.
+      Extra records can be viewed by scrolling
+      inside the table only.
+    */
+    max-height: 245px;
+
     border-radius: 8px;
     overflow-x: auto;
     overflow-y: auto;
+
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 0;
   }
 
   table.entries {
@@ -763,12 +787,19 @@ table.entries td {
     padding: 8px;
   }
 
+  table.entries tbody tr {
+    height: 40px;
+  }
+
   /* BOTTOM */
 
   .bottom-row {
     flex-direction: column;
     width: 100%;
     gap: 10px;
+
+    /* Prevent bottom area from being affected by table scroll */
+    flex-shrink: 0;
   }
 
   .total-box {
@@ -861,6 +892,18 @@ table.entries td {
     font-size: 14px;
   }
 
+  /*
+    Keep only 5 records visible on very small phones too.
+    User can scroll inside table for older records.
+  */
+  .table-wrap {
+    max-height: 245px;
+  }
+
+  table.entries tbody tr {
+    height: 40px;
+  }
+
   .total-box {
     font-size: 15px;
   }
@@ -906,4 +949,154 @@ table.entries td {
     }
   }
 }
+@media (max-width: 600px) {
 
+  /* Mobile spacing adjustment only */
+  .title-cloud-wrap {
+    margin-top: -18px;
+    margin-bottom: 15px;
+  }
+
+  .back-btn {
+    margin-top: 0;
+  }
+
+  .panel {
+    margin-top: -5px;
+    padding-bottom: 55px;
+  }
+
+  .bottom-row {
+    margin-top: 15px;
+    padding-bottom: 45px;
+  }
+
+}
+@media (max-width: 600px) {
+
+  /* Add Expense section spacing */
+  .section-label-wrap {
+    margin-top: -8px;
+    margin-bottom: 6px;
+  }
+
+  /* Add Record section spacing */
+  #transactionScreen .section-label-wrap {
+    margin-top: -8px;
+    margin-bottom: 6px;
+  }
+
+}
+/* =========================
+   ONLY RECORD TABLE SCROLL
+========================= */
+
+.screen {
+  overflow: hidden;
+}
+
+.table-wrap {
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+
+  .screen {
+    overflow: hidden;
+  }
+
+  .table-wrap {
+    max-height: 220px;
+    overflow-y: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+}
+@media (max-width: 600px) {
+
+  .table-wrap {
+    max-height: 240px;
+  }
+
+}
+table.entries tr.selected-row {
+  background-color: #fff3a3 !important;
+}
+
+@media (max-width: 600px) {
+  table.entries tr {
+    cursor: pointer;
+  }
+
+  table.entries tr:active {
+    background-color: #fff3a3 !important;
+  }
+}
+
+/* =====================================================
+   MONEY TRANSACTION PAGE ONLY
+   MOBILE VIEW ONLY
+===================================================== */
+
+@media (max-width: 600px) {
+
+  /* Money Transaction page only */
+  #transactionScreen .input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    align-items: stretch;
+    margin-bottom: 10px;
+  }
+
+  /* Payer */
+  #transactionScreen .input-row .payer-input {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  /* Receiver */
+  #transactionScreen .input-row .receiver-input {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  /* Enter Amount */
+  #transactionScreen .input-row .amount-input {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  /* Date */
+  #transactionScreen .input-row .date-pill {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  /* Done button - Date ની નીચે */
+  #transactionScreen .input-row .done-btn {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  /* Money Transaction table - 4 records visible */
+  #transactionScreen .table-wrap {
+    max-height: 205px;
+    overflow-y: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #transactionScreen table.entries tbody tr {
+    height: 40px;
+  }
+
+  /* Bottom section */
+  #transactionScreen .bottom-row {
+    margin-top: 10px;
+  }
+
+}
