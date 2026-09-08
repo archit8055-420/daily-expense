@@ -906,34 +906,4 @@ table.entries td {
     }
   }
 }
-/* =========================
-   MOBILE FIX
-========================= */
 
-@media (max-width: 600px) {
-
-  .screen {
-    height: 100%;
-    min-height: 100%;
-    padding: 55px 10px 80px;
-    overflow-y: auto;
-  }
-
-  .panel {
-    min-height: auto;
-    height: auto;
-    padding: 15px 10px 30px;
-    margin-bottom: 30px;
-  }
-
-  .bottom-row {
-    padding-bottom: 20px;
-    gap: 15px;
-  }
-
-  .pdf-btn {
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-
-}
