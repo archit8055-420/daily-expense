@@ -195,7 +195,9 @@ function fillMonthYear(monthSelId, yearSelId) {
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  const options = { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' };
+  const formatter = new Intl.DateTimeFormat('en-CA', options);
+  return formatter.format(new Date());
 }
 
 function formatDate(iso) {
