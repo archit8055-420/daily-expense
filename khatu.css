@@ -1561,7 +1561,7 @@ table.entries tr.selected-row {
 
   border-radius: 14px;
 
-  background: #f8fafc;
+  background: #6fa7de;
 
   color: #334155;
 
@@ -1745,14 +1745,14 @@ table.entries tr.selected-row {
 }
 
 .summary-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: #64748b;
   margin-bottom: 3px;
 }
 
 .summary-item strong {
-  font-size: 16px;
+  font-size: 15px;
   color: #0f172a;
 }
 
@@ -1844,7 +1844,7 @@ table.entries tr.selected-row {
   }
 
   .chart-month {
-    font-size: 11px;
+    font-size: 14px;
   }
 
   .chart-bar-area {
@@ -1852,7 +1852,7 @@ table.entries tr.selected-row {
   }
 
   .chart-value {
-    font-size: 11px;
+    font-size: 14px;
   }
 
   .summary-grid {
