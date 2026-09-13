@@ -1473,6 +1473,7 @@ table.entries tr.selected-row {
 }
 
 .dashboard-card-title {
+  text-align: center;
   font-size: 14px;
   font-weight: 700;
   color: #64748b;
@@ -1483,6 +1484,7 @@ table.entries tr.selected-row {
 .dashboard-card-value {
   font-size: 25px;
   font-weight: 800;
+  text-align: center;
   color: #0f172a;
 }
 
@@ -1625,7 +1627,8 @@ table.entries tr.selected-row {
   }
 
   .dashboard-card-value {
-    font-size: 23px;
+    font-size: 18px;
+    text-align: center;
   }
 
   .dashboard-summary {
@@ -1685,7 +1688,7 @@ table.entries tr.selected-row {
 
 .chart-value {
   text-align: right;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   color: #0f172a;
   white-space: nowrap;
@@ -1889,7 +1892,7 @@ table.entries tr.selected-row {
   }
 
   .chart-value {
-    font-size: 10px;
+    font-size: 14px;
   }
 
   .summary-label {
@@ -1984,6 +1987,7 @@ table.entries tr.selected-row {
   box-shadow: 0 14px 30px rgba(0,0,0,0.15);
 }
 .dashboard-card-title {
+  text-align: center;
   font-size: 13px;
   font-weight: 700;
   color: #64748b;
@@ -1991,6 +1995,7 @@ table.entries tr.selected-row {
   letter-spacing: 0.3px;
 }
 .dashboard-card-value {
+  text-align: center;
   font-size: 24px;
   font-weight: 800;
   color: #0f172a;
@@ -2045,7 +2050,8 @@ table.entries tr.selected-row {
     padding: 18px 16px;
   }
   .dashboard-card-value {
-    font-size: 22px;
+    font-size: 18px;
+    text-align: center;
   }
 }
 
