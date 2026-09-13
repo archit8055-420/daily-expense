@@ -272,109 +272,210 @@ async function handleLogout() { await supabaseClient.auth.signOut(); showScreen(
 
 /* ================= DASHBOARD ================= */
 function computeDashboardTotals(month, year) {
-  const totalExpense = expenses.reduce((s, i) => s + Number(i.amount || 0), 0), totalTransaction = transactions.reduce((s, i) => s + Number(i.amount || 0), 0);
-  const fE = expenses.filter(i => { const p = parseISODate(i.date_iso); return p && p.month === month && p.year === year; }), fT = transactions.filter(i => { const p = parseISODate(i.date_iso); return p && p.month === month && p.year === year; });
-  return { totalExpense, totalTransaction, monthExpenseTotal: fE.reduce((s, i) => s + Number(i.amount || 0), 0), monthTransactionTotal: fT.reduce((s, i) => s + Number(i.amount || 0), 0) };
+  const totalExpense = expenses.reduce((s, i) => s + Number(i.amount || 0), 0);
+  const totalTransaction = transactions.reduce((s, i) => s + Number(i.amount || 0), 0);
+  const fE = expenses.filter(i => { const p = parseISODate(i.date_iso); return p && p.month === month && p.year === year; });
+  const fT = transactions.filter(i => { const p = parseISODate(i.date_iso); return p && p.month === month && p.year === year; });
+  return {
+    totalExpense,
+    totalTransaction,
+    monthExpenseTotal: fE.reduce((s, i) => s + Number(i.amount || 0), 0),
+    monthTransactionTotal: fT.reduce((s, i) => s + Number(i.amount || 0), 0)
+  };
 }
-function applyDashboardFilter() { const month = parseInt(document.getElementById('dashMonth').value, 10), year = parseInt(document.getElementById('dashYear').value, 10); renderDashboard(month, year); }
-function getMonthlyTotals(data) { const totals = new Array(12).fill(0); data.forEach(item => { const p = parseISODate(item.date_iso); if (p) totals[p.month] += Number(item.amount || 0); }); return totals; }
+function applyDashboardFilter() {
+  const month = parseInt(document.getElementById('dashMonth').value, 10);
+  const year = parseInt(document.getElementById('dashYear').value, 10);
+  renderDashboard(month, year);
+}
+function getMonthlyTotals(data) {
+  const totals = new Array(12).fill(0);
+  data.forEach(item => {
+    const p = parseISODate(item.date_iso);
+    if (p) totals[p.month] += Number(item.amount || 0);
+  });
+  return totals;
+}
 function createChart(containerId, values, color = '#3b82f6') {
-  const container = document.getElementById(containerId); if (!container) return; const maxValue = Math.max(...values, 1);
-  container.innerHTML = `<div class="dashboard-chart">${values.map((value, index) => `<div class="chart-row"><div class="chart-month">${monthNames[index].slice(0, 3)}</div><div class="chart-bar-area"><div class="chart-bar" style="width:${value > 0? Math.max((value / maxValue) * 100, 3) : 0}%; background:${color};"></div></div><div class="chart-value">₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div></div>`).join('')}</div>`;
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const maxValue = Math.max(...values, 1);
+  container.innerHTML = `<div class="dashboard-chart">${values.map((value, index) =>
+    `<div class="chart-row">
+      <div class="chart-month">${monthNames[index].slice(0, 3)}</div>
+      <div class="chart-bar-area"><div class="chart-bar" style="width:${value > 0 ? Math.max((value / maxValue) * 100, 3) : 0}%; background:${color};"></div></div>
+      <div class="chart-value">₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+    </div>`
+  ).join('')}</div>`;
 }
-function getHighestMonth(data) { const totals = getMonthlyTotals(data), max = Math.max(...totals); if (max <= 0) return { month: '-', amount: 0 }; return { month: monthNames[totals.indexOf(max)], amount: max }; }
-function getPreviousMonthData(data, month, year) { let m = month - 1, y = year; if (m < 0) { m = 11; y--; } return data.filter(item => { const p = parseISODate(item.date_iso); return p && p.month === m && p.year === y; }); }
+function getHighestMonth(data) {
+  const totals = getMonthlyTotals(data);
+  const max = Math.max(...totals);
+  if (max <= 0) return { month: '-', amount: 0 };
+  return { month: monthNames[totals.indexOf(max)], amount: max };
+}
+function getPreviousMonthData(data, month, year) {
+  let m = month - 1, y = year;
+  if (m < 0) { m = 11; y--; }
+  return data.filter(item => {
+    const p = parseISODate(item.date_iso);
+    return p && p.month === m && p.year === y;
+  });
+}
 function renderDashboardSummary(month, year, totals) {
-  const el = document.getElementById('dashboardSummary'); if (!el) return;
+  const el = document.getElementById('dashboardSummary');
+  if (!el) return;
   const { totalExpense, totalTransaction, monthExpenseTotal, monthTransactionTotal } = totals;
-  const currentLabel = `${monthNames[month]} ${year}`, expenseCount = expenses.length, transactionCount = transactions.length;
-  const previousExpenses = getPreviousMonthData(expenses, month, year), previousTransactions = getPreviousMonthData(transactions, month, year);
-  const previousExpenseTotal = previousExpenses.reduce((s, i) => s + Number(i.amount || 0), 0), previousTransactionTotal = previousTransactions.reduce((s, i) => s + Number(i.amount || 0), 0);
-  const overallDifference = totalTransaction - totalExpense, monthDifference = monthTransaction - monthExpense;
-  let expenseChange = previousExpenseTotal > 0? ((monthExpenseTotal - previousExpenseTotal) / previousExpenseTotal) * 100 : 0;
-  let transactionChange = previousTransactionTotal > 0? ((monthTransactionTotal - previousTransactionTotal) / previousTransactionTotal) * 100 : 0;
+  const currentLabel = `${monthNames[month]} ${year}`;
+  const expenseCount = expenses.length;
+  const transactionCount = transactions.length;
+  const previousExpenses = getPreviousMonthData(expenses, month, year);
+  const previousTransactions = getPreviousMonthData(transactions, month, year);
+  const previousExpenseTotal = previousExpenses.reduce((s, i) => s + Number(i.amount || 0), 0);
+  const previousTransactionTotal = previousTransactions.reduce((s, i) => s + Number(i.amount || 0), 0);
+  const overallDifference = totalTransaction - totalExpense;
+  const monthDifference = monthTransactionTotal - monthExpenseTotal;
+
   el.innerHTML = `<div class="summary-grid">
-    <div class="summary-item"><span>🧾</span><div><div class="summary-label">Total Expense Records</div><strong>${expenseCount}</strong></div></div>
-    <div class="summary-item"><span>💸</span><div><div class="summary-label">Total Transaction Records</div><strong>${transactionCount}</strong></div></div>
-    <div class="summary-item"><span>📅</span><div><div class="summary-label">${currentLabel} Expense</div><strong>₹${monthExpenseTotal.toFixed(2)}</strong></div></div>
-    <div class="summary-item"><span>💰</span><div><div class="summary-label">${currentLabel} Transaction</div><strong>₹${monthTransactionTotal.toFixed(2)}</strong></div></div>
-    <div class="summary-item"><span>📊</span><div><div class="summary-label">${currentLabel} Difference</div><strong>₹${monthDifference.toFixed(2)}</strong></div></div>
-    <div class="summary-item"><span>💵</span><div><div class="summary-label">Overall Difference</div><strong>₹${overallDifference.toFixed(2)}</strong></div></div>
-    <div class="summary-item"><span>🏆</span><div><div class="summary-label">Highest Expense Month</div><strong>${getHighestMonth(expenses).month}</strong></div></div>
-    <div class="summary-item"><span>🥇</span><div><div class="summary-label">Highest Transaction Month</div><strong>${getHighestMonth(transactions).month}</strong></div></div>
+    <div class="summary-item"><span class="summary-icon">🧾</span><div><div class="summary-label">Total Expense Records</div><strong>${expenseCount}</strong></div></div>
+    <div class="summary-item"><span class="summary-icon">💸</span><div><div class="summary-label">Total Transaction Records</div><strong>${transactionCount}</strong></div></div>
+    <div class="summary-item"><span class="summary-icon">📅</span><div><div class="summary-label">${currentLabel} Expense</div><strong>₹${monthExpenseTotal.toFixed(2)}</strong></div></div>
+    <div class="summary-item"><span class="summary-icon">💰</span><div><div class="summary-label">${currentLabel} Transaction</div><strong>₹${monthTransactionTotal.toFixed(2)}</strong></div></div>
+    <div class="summary-item"><span class="summary-icon">📊</span><div><div class="summary-label">${currentLabel} Difference</div><strong>₹${monthDifference.toFixed(2)}</strong></div></div>
+    <div class="summary-item"><span class="summary-icon">💵</span><div><div class="summary-label">Overall Difference</div><strong>₹${overallDifference.toFixed(2)}</strong></div></div>
+    <div class="summary-item"><span class="summary-icon">🏆</span><div><div class="summary-label">Highest Expense Month</div><strong>${getHighestMonth(expenses).month}</strong></div></div>
+    <div class="summary-item"><span class="summary-icon">🥇</span><div><div class="summary-label">Highest Transaction Month</div><strong>${getHighestMonth(transactions).month}</strong></div></div>
   </div>`;
 }
 async function loadDashboard() {
-  const user = await getCurrentUser(); if (!user) return;
-  try { expenses = await loadTable('expenses'); transactions = await loadTable('transactions'); fillMonthYear('dashMonth', 'dashYear'); const now = new Date(); renderDashboard(now.getMonth(), now.getFullYear()); }
-  catch (error) { document.getElementById('dashboardSummary').innerHTML = `<div class="dashboard-error">Error: ${escapeHtml(error.message)}</div>`; }
+  const user = await getCurrentUser();
+  if (!user) return;
+  try {
+    expenses = await loadTable('expenses');
+    transactions = await loadTable('transactions');
+    fillMonthYear('dashMonth', 'dashYear');
+    const now = new Date();
+    renderDashboard(now.getMonth(), now.getFullYear());
+  } catch (error) {
+    document.getElementById('dashboardSummary').innerHTML = `<div class="dashboard-error">Error: ${escapeHtml(error.message)}</div>`;
+  }
 }
 function renderDashboard(month, year) {
-  createChart('expenseChart', getMonthlyTotals(expenses), '#ef4444'); createChart('transactionChart', getMonthlyTotals(transactions), '#3b82f6');
+  createChart('expenseChart', getMonthlyTotals(expenses), '#ef4444');
+  createChart('transactionChart', getMonthlyTotals(transactions), '#3b82f6');
   const totals = computeDashboardTotals(month, year);
-  if(document.getElementById('dashboardTotalExpense')) document.getElementById('dashboardTotalExpense').textContent = totals.totalExpense.toFixed(2);
-  if(document.getElementById('dashboardTotalTransaction')) document.getElementById('dashboardTotalTransaction').textContent = totals.totalTransaction.toFixed(2);
-  if(document.getElementById('dashboardMonthExpense')) document.getElementById('dashboardMonthExpense').textContent = totals.monthExpenseTotal.toFixed(2);
-  if(document.getElementById('dashboardMonthTransaction')) document.getElementById('dashboardMonthTransaction').textContent = totals.monthTransactionTotal.toFixed(2);
-  if(document.getElementById('dashMonthExpenseTitle')) document.getElementById('dashMonthExpenseTitle').textContent = `${monthNames[month]} ${year} Expense`;
-  if(document.getElementById('dashMonthTransactionTitle')) document.getElementById('dashMonthTransactionTitle').textContent = `${monthNames[month]} ${year} Transaction`;
+  if (document.getElementById('dashboardTotalExpense')) document.getElementById('dashboardTotalExpense').textContent = totals.totalExpense.toFixed(2);
+  if (document.getElementById('dashboardTotalTransaction')) document.getElementById('dashboardTotalTransaction').textContent = totals.totalTransaction.toFixed(2);
+  if (document.getElementById('dashboardMonthExpense')) document.getElementById('dashboardMonthExpense').textContent = totals.monthExpenseTotal.toFixed(2);
+  if (document.getElementById('dashboardMonthTransaction')) document.getElementById('dashboardMonthTransaction').textContent = totals.monthTransactionTotal.toFixed(2);
+  if (document.getElementById('dashMonthExpenseTitle')) document.getElementById('dashMonthExpenseTitle').textContent = `${monthNames[month]} ${year} Expense`;
+  if (document.getElementById('dashMonthTransactionTitle')) document.getElementById('dashMonthTransactionTitle').textContent = `${monthNames[month]} ${year} Transaction`;
   renderDashboardSummary(month, year, totals);
 }
 
 /* ================= EVENTS & UTILS ================= */
 document.addEventListener('DOMContentLoaded', async () => {
-  fillMonthYear('expMonth', 'expYear'); fillMonthYear('txnMonth', 'txnYear');
-  const todayStr = todayISO(); document.getElementById('expDate').value = todayStr; document.getElementById('txnDate').value = todayStr;
-  document.getElementById('expDateText').textContent = formatDate(todayStr); document.getElementById('txnDateText').textContent = formatDate(todayStr);
+  fillMonthYear('expMonth', 'expYear');
+  fillMonthYear('txnMonth', 'txnYear');
+  const todayStr = todayISO();
+  document.getElementById('expDate').value = todayStr;
+  document.getElementById('txnDate').value = todayStr;
+  document.getElementById('expDateText').textContent = formatDate(todayStr);
+  document.getElementById('txnDateText').textContent = formatDate(todayStr);
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
     if (event === 'PASSWORD_RECOVERY') { await checkRecoverySession(); return; }
     if (event === 'SIGNED_OUT') { expenses = []; transactions = []; currentUserId = null; }
-    if (event === 'SIGNED_IN' && session?.user && session.user.id!== currentUserId) { currentUserId = session.user.id; expenses = []; transactions = []; }
+    if (event === 'SIGNED_IN' && session?.user && session.user.id !== currentUserId) {
+      currentUserId = session.user.id;
+      expenses = [];
+      transactions = [];
+    }
   });
   await checkAuth();
 });
 function showBottomMessage(msg, type = 'success') {
-  const bar = document.getElementById('bottomMsgBar'); if (!bar) return;
-  bar.textContent = msg; bar.className = 'bottom-msg-bar ' + type;
+  const bar = document.getElementById('bottomMsgBar');
+  if (!bar) return;
+  bar.textContent = msg;
+  bar.className = 'bottom-msg-bar ' + type;
   requestAnimationFrame(() => bar.classList.add('show'));
   setTimeout(() => bar.classList.remove('show'), 4000);
 }
 function toggleTempShow(inputId, btn) {
-  const input = document.getElementById(inputId); if (!input) return;
-  if (input.type === 'text') { if (passwordTimers[inputId]) clearTimeout(passwordTimers[inputId]); input.type = 'password'; btn.classList.remove('active'); btn.textContent = '👁'; return; }
-  input.type = 'text'; btn.classList.add('active'); btn.textContent = '🙈';
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === 'text') {
+    if (passwordTimers[inputId]) clearTimeout(passwordTimers[inputId]);
+    input.type = 'password';
+    btn.classList.remove('active');
+    btn.textContent = '👁';
+    return;
+  }
+  input.type = 'text';
+  btn.classList.add('active');
+  btn.textContent = '🙈';
   if (passwordTimers[inputId]) clearTimeout(passwordTimers[inputId]);
-  passwordTimers[inputId] = setTimeout(() => { input.type = 'password'; btn.classList.remove('active'); btn.textContent = '👁'; delete passwordTimers[inputId]; }, 4000);
+  passwordTimers[inputId] = setTimeout(() => {
+    input.type = 'password';
+    btn.classList.remove('active');
+    btn.textContent = '👁';
+    delete passwordTimers[inputId];
+  }, 4000);
 }
 async function checkRecoverySession() {
-  const hash = window.location.hash; if (!hash ||!hash.includes('type=recovery')) return;
+  const hash = window.location.hash;
+  if (!hash || !hash.includes('type=recovery')) return;
   try {
-    let user = null; for (let i = 0; i < 8; i++) { const { data: { user: u } } = await supabaseClient.auth.getUser(); if (u) { user = u; break; } await new Promise(r => setTimeout(r, 300)); }
-    if (!user) { showBottomMessage("Invalid or expired recovery link.", "error"); showScreen('login'); history.replaceState(null, '', window.location.pathname); return; }
+    let user = null;
+    for (let i = 0; i < 8; i++) {
+      const { data: { user: u } } = await supabaseClient.auth.getUser();
+      if (u) { user = u; break; }
+      await new Promise(r => setTimeout(r, 300));
+    }
+    if (!user) {
+      showBottomMessage("Invalid or expired recovery link.", "error");
+      showScreen('login');
+      history.replaceState(null, '', window.location.pathname);
+      return;
+    }
     document.getElementById('resetUsername').textContent = user.user_metadata?.username || user.email?.split('@')[0] || 'User';
-    document.getElementById('resetEmailShow').textContent = user.email || '-'; showScreen('resetPassword');
+    document.getElementById('resetEmailShow').textContent = user.email || '-';
+    showScreen('resetPassword');
     history.replaceState(null, '', window.location.pathname);
-  } catch (err) { showBottomMessage("Recovery error: " + err.message, "error"); showScreen('login'); }
+  } catch (err) {
+    showBottomMessage("Recovery error: " + err.message, "error");
+    showScreen('login');
   }
-  
-  
+}
+
 async function handleUpdatePassword() {
-  const newPass = document.getElementById('newPassword').value, retype = document.getElementById('retypeNewPassword').value;
-  const errorEl = document.getElementById('resetError'), btn = document.getElementById('confirmResetBtn');
+  const newPass = document.getElementById('newPassword').value;
+  const retype = document.getElementById('retypeNewPassword').value;
+  const errorEl = document.getElementById('resetError');
+  const btn = document.getElementById('confirmResetBtn');
   errorEl.textContent = '';
-  if (newPass!== retype) return (errorEl.textContent = 'Passwords do not match', showBottomMessage("Passwords do not match", "error"));
-  if (newPass.length < 6) return (errorEl.textContent = 'Password must be at least 6 characters', showBottomMessage("Password must be at least 6 characters", "error"));
-  btn.disabled = true; btn.textContent = 'Updating...';
+  if (newPass !== retype) {
+    errorEl.textContent = 'Passwords do not match';
+    showBottomMessage("Passwords do not match", "error");
+    return;
+  }
+  if (newPass.length < 6) {
+    errorEl.textContent = 'Password must be at least 6 characters';
+    showBottomMessage("Password must be at least 6 characters", "error");
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Updating...';
   try {
     const { data: { user } } = await supabaseClient.auth.getUser();
     const { error } = await supabaseClient.auth.updateUser({ password: newPass });
     if (error) throw error;
     document.getElementById('successUsername').textContent = user?.user_metadata?.username || user?.email?.split('@')[0] || 'User';
     await supabaseClient.auth.signOut();
-    currentUserId = null; // important
+    currentUserId = null;
     showScreen('passwordSuccess');
     document.getElementById('resetForm').reset();
-    history.replaceState(null, '', window.location.pathname); // URL mathi #hash kadhi nakhe
+    history.replaceState(null, '', window.location.pathname);
   } catch (err) {
     errorEl.textContent = err.message;
     showBottomMessage(err.message, "error");
@@ -384,11 +485,11 @@ async function handleUpdatePassword() {
   }
 }
 
-// PWA wala niche j raheva de - ema ferfar nai
+// PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./service-worker.js')
-     .then(() => console.log('PWA registered'))
-     .catch(err => console.error(err));
+      .then(() => console.log('PWA registered'))
+      .catch(err => console.error(err));
   });
 }
