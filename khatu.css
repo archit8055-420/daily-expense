@@ -478,6 +478,7 @@ table.entries tr.selected-row {
   margin-top: 15px;
   gap: 12px;
   flex-shrink: 0;
+
 }
 
 .total-box {
@@ -667,7 +668,7 @@ table.entries tr.selected-row {
     border-width: 2px;
     min-height: auto;
     margin-top: -5px;
-    padding-bottom: 55px;
+    padding-bottom: 30px;
   }
 
   /* MONTH / YEAR */
@@ -774,7 +775,7 @@ table.entries tr.selected-row {
     width: 100%;
     gap: 10px;
     margin-top: 15px;
-    padding-bottom: 45px;
+    padding-bottom: 1px;
   }
 
   .total-box {
@@ -787,7 +788,7 @@ table.entries tr.selected-row {
   .pdf-btn {
     width: 100%;
     font-size: 15px;
-    padding: 10px;
+    padding: 12px;
   }
 
   .action-btns {
@@ -872,7 +873,7 @@ table.entries tr.selected-row {
   }
 
   .panel {
-    padding: 8px;
+    padding: 10px;
   }
 
   .top-row {
@@ -1422,10 +1423,17 @@ table.entries tr.selected-row {
 ========================================================= */
 
 .dashboard-screen {
-  min-height: 100vh;
-  overflow-y: auto;           /* whole dashboard scroll */
+  height: 820px;
+  overflow-y: scroll;           /* whole dashboard scroll */
   overflow-x: hidden;
   padding-bottom: 40px;
+
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
+}
+
+.dashboard-screen::-webkit-scrollbar {
+  display: none;
 }
 
 .dashboard-panel {
@@ -1795,10 +1803,18 @@ table.entries tr.selected-row {
 @media (max-width: 600px) {
 
   .dashboard-screen {
-    overflow-y: auto;
+    height: 100vh;
+    overflow-y: scroll;
     overflow-x: hidden;
     padding-bottom: 50px;
+
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  .dashboard-screen::-webkit-scrollbar {
+    display: none;
+  }
+
 
   .dashboard-panel {
     margin-bottom: 40px;
