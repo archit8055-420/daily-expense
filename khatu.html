@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f172a">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="khatu.css?v=4.6">
+<link rel="stylesheet" href="khatu.css?v=4.8">
 </head>
 <body>
 
@@ -81,19 +81,18 @@
   </div>
 
   <!-- PASSWORD SUCCESS SCREEN -->
-    <!-- PASSWORD SUCCESS SCREEN -->
-    <div id="passwordSuccessScreen" class="screen auth-screen">
-      <div class="auth-panel">
-        <div class="auth-title" style="color:#059669;">Password Reset</div>
-        <div style="text-align:center; margin: 25px 0 20px; font-size:18px; font-weight:700; color:#0f172a; line-height:1.5;">
-          Hey, <span id="successUsername">User</span> 👋
-        </div>
-        <div style="text-align:center; font-size:16px; font-weight:600; color:#334155; line-height:1.7;">
-          You have successfully changed your password.<br><br>
-          Please go to the site and login with your new password.
-        </div>
+  <div id="passwordSuccessScreen" class="screen auth-screen">
+    <div class="auth-panel">
+      <div class="auth-title" style="color:#059669;">Password Reset</div>
+      <div style="text-align:center; margin: 25px 0 20px; font-size:18px; font-weight:700; color:#0f172a; line-height:1.5;">
+        Hey, <span id="successUsername">User</span> 👋
+      </div>
+      <div style="text-align:center; font-size:16px; font-weight:600; color:#334155; line-height:1.7;">
+        You have successfully changed your password.<br><br>
+        Please go to the site and login with your new password.
       </div>
     </div>
+  </div>
 
   <!-- HOME SCREEN -->
   <div id="homeScreen" class="screen">
@@ -176,7 +175,11 @@
     <button class="back-btn" onclick="goBack()">← Back</button>
     <div class="title-cloud-wrap"><div class="title-cloud">📊 Interactive Dashboard</div></div>
     <div class="dashboard-panel">
-      <div class="dashboard-filter-row"><div class="dash-select-pill"><select id="dashMonth" onchange="applyDashboardFilter()"></select></div><div class="dash-select-pill"><select id="dashYear" onchange="applyDashboardFilter()"></select></div><button class="dash-ok-btn" onclick="applyDashboardFilter()">Ok</button></div>
+      <div class="dashboard-filter-row">
+        <div class="dash-select-pill"><select id="dashMonth"></select></div>
+        <div class="dash-select-pill"><select id="dashYear"></select></div>
+        <button class="dash-ok-btn" onclick="applyDashboardFilter()">Ok</button>
+      </div>
       <div class="dashboard-cards">
         <div class="dashboard-card expense-card"><div class="dashboard-card-title">Total Expense</div><div class="dashboard-card-value">₹<span id="dashboardTotalExpense">0.00</span></div></div>
         <div class="dashboard-card month-expense-card"><div class="dashboard-card-title" id="dashMonthExpenseTitle">This Month Expense</div><div class="dashboard-card-value">₹<span id="dashboardMonthExpense">0.00</span></div></div>
@@ -194,6 +197,6 @@
 <div id="bottomMsgBar" class="bottom-msg-bar"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="khatu.js?v=4.6"></script>
+<script src="khatu.js?v=4.8"></script>
 </body>
 </html>
