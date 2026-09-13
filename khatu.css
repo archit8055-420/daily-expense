@@ -1,9 +1,10 @@
 /* =========================
-   FINAL FIXED CSS - v5.0
+   FINAL FIXED CSS - v6.0 (Mobile Fixed)
    - No screen scroll except Dashboard
-   - Only table area scrolls (6 records visible)
-   - Total & PDF button fixed position
-   - Background never cuts off
+   - Only table area scrolls
+   - Total & PDF button always visible on mobile
+   - Month/Year centered
+   - No overlap with back button
 ========================= */
 * {
   box-sizing: border-box;
@@ -16,7 +17,7 @@ body {
   width: 100%;
   height: 100%;
   margin: 0;
-  overflow: hidden; /* page scroll બંધ */
+  overflow: hidden;
 }
 
 body {
@@ -49,7 +50,7 @@ body {
   width: 100%;
   height: 100%;
   padding: 25px;
-  overflow: hidden; /* screen scroll બંધ */
+  overflow: hidden;
   position: absolute;
   top: 0;
   left: 0;
@@ -156,7 +157,7 @@ body {
   min-height: 480px;
   position: relative;
   width: 100%;
-  padding-bottom: 55px; /* 70px → 55px (bottom-row ઉપર આવશે) */
+  padding-bottom: 70px;
   overflow: hidden;
   height: 100%;
   box-sizing: border-box;
@@ -176,7 +177,7 @@ body {
 }
 .select-pill select { border: none; background: transparent; font-size: 15px; font-weight: bold; outline: none; cursor: pointer; }
 
-.section-label-wrap { text-align: center; margin-bottom: 12px; }
+.section-label-wrap { text-align: center; margin-bottom: 14px; margin-top: 2px; }
 .section-label { font-size: 20px; font-weight: 800; color: #d97706; }
 
 .input-row { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; width: 100%; flex-wrap: wrap; }
@@ -195,11 +196,11 @@ body {
   padding: 12px 20px; font-size: 16px; font-weight: bold; cursor: pointer; white-space: nowrap; flex: 1 1 100px;
 }
 
-/* TABLE – only this scrolls (6 records visible) */
+/* TABLE – only this scrolls */
 .table-wrap {
   background: #fff;
   border-radius: 12px;
-  height: 260px; /* 6 rows જેટલી height */
+  height: 260px;
   max-height: 260px;
   overflow-x: auto;
   overflow-y: auto;
@@ -232,24 +233,25 @@ table.entries td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-s
   position: absolute;
   left: 20px;
   right: 20px;
-  bottom: 30px; /* 20px → 30px (ઉપર આવશે) */
+  bottom: 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  z-index: 5;
 }
 
 .total-box {
   background: #fff;
   border: 2px solid #000;
   border-radius: 12px;
-  padding: 8px 14px; /* 10px 20px → 8px 14px (ટૂંકી પટ્ટી) */
-  font-size: 16px; /* 18px → 16px */
+  padding: 8px 14px;
+  font-size: 16px;
   font-weight: bold;
   box-shadow: 3px 3px 0px #000;
   flex: 1;
-  white-space: nowrap; /* લાઈન તૂટશે નહીં */
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -478,7 +480,7 @@ table.entries td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-s
 .month-expense-card::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
 .transaction-card::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
 .month-transaction-card::before { background: linear-gradient(90deg, #10b981, #34d399); }
-.dashboard-card-title { font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 10px; }
+.dashboard-card-title { font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 14px; }
 .dashboard-card-value { font-size: 24px; font-weight: 800; color: #0f172a; }
 .dashboard-summary { background: white; border-radius: 20px; padding: 22px; margin-bottom: 22px; box-shadow: 0 8px 25px rgba(0,0,0,0.10); }
 .dashboard-section-title { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 18px; }
@@ -536,67 +538,173 @@ table.entries td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-s
     display: block;
     overflow: hidden;
   }
+
   .screen,
   .screen.active {
-    padding: 10px;
-    padding-bottom: 110px;
+    padding: 8px;
+    padding-bottom: 8px;
     position: relative;
     height: 100%;
     min-height: 100dvh;
     overflow: hidden !important;
   }
-  .app-bg { padding-top: 58px; padding-bottom: 30px !important; height: 100%; overflow: hidden !important; }
-  .back-btn { top: 10px; left: 10px; padding: 7px 14px; font-size: 13px; }
-  .title-cloud { font-size: 18px; padding: 7px 22px; }
-  .panel {
-    padding: 12px;
-    border-radius: 18px;
-    padding-bottom: 65px; /* 80px → 65px */
-    min-height: auto;
+
+  .app-bg {
+    padding-top: 52px;
+    padding-bottom: 8px !important;
     height: 100%;
+    overflow: hidden !important;
   }
-  .top-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .pill { grid-column: 1 / -1; text-align: center; font-size: 15px; }
-  .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .teal-pill, .date-pill, .done-btn { flex: unset; width: 100%; }
-  .table-wrap {
-    height: 240px;
-    max-height: 240px;
+
+  .back-btn {
+    top: 10px;
+    left: 10px;
+    padding: 7px 14px;
+    font-size: 13px;
+    z-index: 20;
   }
-  table.entries { min-width: 700px; font-size: 13px; }
-  .bottom-row {
-    left: 12px;
-    right: 12px;
-    bottom: 20px; /* 15px → 20px (ઉપર) */
+
+  .title-cloud-wrap {
+    margin-top: 4px;
+    margin-bottom: 8px;
+  }
+  .title-cloud {
+    font-size: 16px;
+    padding: 6px 18px;
+  }
+
+  /* Dashboard – no overlap */
+  #dashboardScreen .title-cloud-wrap {
+    margin-top: 8px;
+    margin-bottom: 12px;
+  }
+  #dashboardScreen .title-cloud {
+    font-size: 15px;
+    padding: 6px 14px;
+  }
+  #dashboardScreen.app-bg {
+    padding-top: 54px;
+    overflow-y: auto !important;
+  }
+
+  /* Panel – leave space at bottom for Total + PDF */
+  .panel {
+    padding: 10px;
+    border-radius: 16px;
+    padding-bottom: 125px;
+    min-height: auto;
+    height: calc(100% - 4px);
+    display: flex;
     flex-direction: column;
-    gap: 10px;
+  }
+
+  /* Month & Year – CENTERED */
+  .top-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+  }
+  .pill {
+    width: 100%;
+    text-align: center;
+    font-size: 14px;
+    padding: 6px 12px;
+  }
+  .select-pill {
+    flex: 0 0 auto;
+    min-width: 118px;
+    justify-content: center;
+  }
+  .select-pill select {
+    text-align: center;
+    text-align-last: center;
+  }
+
+  /* Add Expense / Add Record – tighter */
+  .section-label-wrap {
+    margin-bottom: 6px;
+    margin-top: 0;
+  }
+  .section-label {
+    font-size: 16px;
+  }
+
+  .input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .teal-pill,
+  .date-pill,
+  .done-btn {
+    flex: unset;
+    width: 100%;
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+
+  /* Table – smaller so Total+PDF always fit */
+  .table-wrap {
+    height: 150px;
+    max-height: 150px;
+    flex: 1 1 auto;
+    min-height: 120px;
+  }
+  table.entries {
+    min-width: 620px;
+    font-size: 12px;
+  }
+  table.entries th,
+  table.entries td {
+    padding: 7px 8px;
+  }
+
+  /* Total + PDF – always visible */
+  .bottom-row {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 14px;
+    flex-direction: column;
+    gap: 7px;
+    z-index: 10;
   }
   .total-box {
     padding: 8px 12px;
-    font-size: 15px;
+    font-size: 14px;
     width: 100%;
     text-align: center;
   }
   .pdf-btn {
     width: 100%;
     text-align: center;
+    padding: 10px 14px;
+    font-size: 14px;
   }
 
-  #transactionScreen .input-row .payer-input { grid-column: 1; grid-row: 1; }
-  #transactionScreen .input-row .receiver-input { grid-column: 2; grid-row: 1; }
-  #transactionScreen .input-row .amount-input { grid-column: 1; grid-row: 2; }
-  #transactionScreen .input-row .date-pill { grid-column: 2; grid-row: 2; }
-  #transactionScreen .input-row .done-btn { grid-column: 1 / -1; grid-row: 3; }
-
+  /* Expense form layout */
   #expenseScreen .input-row { grid-template-columns: 1fr 1fr; }
   #expenseScreen .input-row #expName { grid-column: 1; }
   #expenseScreen .input-row #expAmount { grid-column: 2; }
   #expenseScreen .input-row .date-pill { grid-column: 1; }
   #expenseScreen .input-row #expDoneBtn { grid-column: 2; }
 
-  .dashboard-cards { grid-template-columns: 1fr; }
+  /* Transaction form layout */
+  #transactionScreen .input-row .payer-input { grid-column: 1; grid-row: 1; }
+  #transactionScreen .input-row .receiver-input { grid-column: 2; grid-row: 1; }
+  #transactionScreen .input-row .amount-input { grid-column: 1; grid-row: 2; }
+  #transactionScreen .input-row .date-pill { grid-column: 2; grid-row: 2; }
+  #transactionScreen .input-row .done-btn { grid-column: 1 / -1; grid-row: 3; }
+
+  .dashboard-cards { grid-template-columns: 1fr; gap: 12px; }
   .summary-grid { grid-template-columns: 1fr; }
-  .user-menu-wrap { top: 12px; right: 12px; }
+  .user-menu-wrap { top: 10px; right: 10px; }
+  .user-menu-btn { width: 40px; height: 40px; font-size: 20px; }
   .profile-row { flex-direction: column; align-items: flex-start; gap: 5px; }
 
   /* Home mobile */
@@ -605,7 +713,7 @@ table.entries td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-s
   .deco.shiva { top: 10px; font-size: 52px; }
   .deco.om { top: 130px; right: 18px; font-size: 52px; }
   .deco.feather { bottom: 14px; left: 14px; font-size: 50px; }
-  .deco.krishna { bottom: 10px; right: 14px; font-size: 56px; }
+  .deco.krishna { bottom: 14px; right: 14px; font-size: 56px; }
   .home-panel {
     padding: 36px 26px;
     border-radius: 32px;
