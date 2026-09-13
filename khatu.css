@@ -650,7 +650,7 @@ table.entries tr.selected-row {
   }
 
   .title-cloud-wrap {
-    margin-top: -18px;
+    margin-top: -8px;
     margin-bottom: 15px;
   }
 
@@ -1806,7 +1806,7 @@ table.entries tr.selected-row {
     height: 100vh;
     overflow-y: scroll;
     overflow-x: hidden;
-    padding-bottom: 50px;
+    padding-bottom: 5px;
 
     scrollbar-width: none;
     -ms-overflow-style: none;
