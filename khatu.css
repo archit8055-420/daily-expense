@@ -1,5 +1,9 @@
 /* =========================
-   FINAL FIXED CSS - v4.8 MOBILE REPAIR
+   FINAL FIXED CSS - v5.0
+   - No screen scroll except Dashboard
+   - Only table area scrolls (6 records visible)
+   - Total & PDF button fixed position
+   - Background never cuts off
 ========================= */
 * {
   box-sizing: border-box;
@@ -7,10 +11,12 @@
   padding: 0;
 }
 
-html, body {
+html,
+body {
   width: 100%;
-  min-height: 100%;
-  overflow-x: hidden;
+  height: 100%;
+  margin: 0;
+  overflow: hidden; /* page scroll બંધ */
 }
 
 body {
@@ -28,11 +34,12 @@ body {
   width: 100vw;
   max-width: 1100px;
   height: 100vh;
+  height: 100dvh;
   max-height: 750px;
   position: relative;
   background: #fff;
   border-radius: 24px;
-  box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
   overflow: hidden;
   isolation: isolate;
 }
@@ -42,19 +49,18 @@ body {
   width: 100%;
   height: 100%;
   padding: 25px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden; /* screen scroll બંધ */
   position: absolute;
   top: 0;
   left: 0;
   opacity: 0;
   pointer-events: none;
-  -webkit-overflow-scrolling: touch;
 }
 
 .screen.active {
   display: block !important;
   position: relative;
+  height: 100%;
   opacity: 1;
   pointer-events: auto;
   animation: screenIn 0.25s ease-out;
@@ -65,11 +71,20 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* HOME */
+/* ========== HOME ========== */
 #homeScreen {
-  background: linear-gradient(180deg, #87ceeb 0%, #4a5568 25%, #311847 50%, #e65100 80%, #ff8f00 100%);
+  background: linear-gradient(
+    180deg,
+    #87ceeb 0%,
+    #4a5568 25%,
+    #311847 50%,
+    #e65100 80%,
+    #ff8f00 100%
+  );
   height: 100%;
+  overflow: hidden;
 }
+
 #homeScreen.active {
   display: flex !important;
   flex-direction: column;
@@ -89,13 +104,13 @@ body {
   background: rgba(255, 255, 255, 0.92);
   border: 3px solid #f1a9a0;
   border-radius: 35px;
-  padding: 42px 48px; /* pela 36px 42px hatu -> have motu */
+  padding: 42px 48px;
   text-align: center;
   box-shadow: 0 15px 35px rgba(0,0,0,0.3);
   z-index: 2;
   margin-top: 10px;
   max-width: calc(100% - 28px);
-  min-width: 360px; /* navu add karyu */
+  min-width: 360px;
 }
 .btn-with-icon { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 16px 0; }
 .side-icon { font-size: 40px; flex-shrink: 0; }
@@ -106,12 +121,18 @@ body {
 }
 .nav-btn:active { transform: translate(2px, 2px); box-shadow: 1px 3px 0px #222; }
 
-/* COMMON APP BG */
+/* ========== APP SCREENS (Expense / Transaction) ========== */
 .app-bg {
-  background: radial-gradient(circle at top, #ff7e5f, #feb47b 35%, #a8eff0 75%);
+  background: radial-gradient(
+    circle at top,
+    #ff7e5f,
+    #feb47b 35%,
+    #a8eff0 75%
+  );
   position: relative;
-  overflow-y: auto !important;
-  padding-bottom: 100px !important;
+  height: 100%;
+  overflow: hidden !important;
+  padding-bottom: 30px !important;
 }
 .back-btn {
   position: absolute; top: 15px; left: 15px; z-index: 10;
@@ -127,10 +148,18 @@ body {
 }
 
 .panel {
-  background: #b2f2ee; border: 3px solid #7ce8e2; border-radius: 25px;
-  padding: 20px; box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
-  min-height: 480px; position: relative; width: 100%;
-  padding-bottom: 25px;
+  background: #b2f2ee;
+  border: 3px solid #7ce8e2;
+  border-radius: 25px;
+  padding: 20px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
+  min-height: 480px;
+  position: relative;
+  width: 100%;
+  padding-bottom: 55px; /* 70px → 55px (bottom-row ઉપર આવશે) */
+  overflow: hidden;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .top-row {
@@ -166,10 +195,16 @@ body {
   padding: 12px 20px; font-size: 16px; font-weight: bold; cursor: pointer; white-space: nowrap; flex: 1 1 100px;
 }
 
-/* TABLE FIX - MAIN SOLUTION */
+/* TABLE – only this scrolls (6 records visible) */
 .table-wrap {
-  background: #fff; border-radius: 12px; max-height: 320px;
-  overflow-x: auto; overflow-y: auto; border: 1.5px solid #94a3b8; width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  height: 260px; /* 6 rows જેટલી height */
+  max-height: 260px;
+  overflow-x: auto;
+  overflow-y: auto;
+  border: 1.5px solid #94a3b8;
+  width: 100%;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
 }
@@ -192,47 +227,182 @@ table.entries td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-s
 .edit-btn { background: #3b82f6; color: #fff; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 12px; font-weight: bold; }
 .empty-note { text-align: center; padding: 25px; color: #64748b; font-size: 16px; font-weight: 500; }
 
-.bottom-row { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; gap: 12px; flex-wrap: wrap; padding-bottom: 10px; }
-.total-box {
-  background: #fff; border: 2px solid #000; border-radius: 12px;
-  padding: 10px 20px; font-size: 18px; font-weight: bold; box-shadow: 3px 3px 0px #000;
-  flex: 1;
+/* Total & PDF button - fixed position */
+.bottom-row {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 30px; /* 20px → 30px (ઉપર આવશે) */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
+
+.total-box {
+  background: #fff;
+  border: 2px solid #000;
+  border-radius: 12px;
+  padding: 8px 14px; /* 10px 20px → 8px 14px (ટૂંકી પટ્ટી) */
+  font-size: 16px; /* 18px → 16px */
+  font-weight: bold;
+  box-shadow: 3px 3px 0px #000;
+  flex: 1;
+  white-space: nowrap; /* લાઈન તૂટશે નહીં */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .pdf-btn {
   background: #b91c1c; color: #fff; font-weight: bold; font-size: 16px;
   padding: 12px 22px; border: none; border-radius: 8px; cursor: pointer; flex-shrink: 0;
 }
 .custom-checkbox { width: 18px; height: 18px; cursor: pointer; }
 
-/* AUTH - FIX FOR YOUR SCREENSHOT 1 */
-.auth-screen { background: linear-gradient(180deg, #87ceeb 0%, #4a5568 25%, #311847 50%, #e65100 80%, #ff8f00 100%); justify-content: center; align-items: center; padding: 20px; min-height: 100dvh; }
-.auth-screen.active { display: flex !important; }
+/* ========== AUTH (Login / Signup / Reset) ========== */
+.auth-screen {
+  background: linear-gradient(
+    180deg,
+    #87ceeb 0%,
+    #4a5568 25%,
+    #311847 50%,
+    #e65100 80%,
+    #ff8f00 100%
+  );
+  height: 100%;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  overflow: hidden !important;
+}
+.auth-screen.active {
+  display: flex !important;
+}
 .auth-panel {
-  background: rgba(255, 255, 255, 0.96); border: 3px solid #f1a9a0; border-radius: 30px;
-  padding: 30px 22px; width: 100%; max-width: 380px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); text-align: center;
+  background: rgba(255, 255, 255, 0.96);
+  border: 3px solid #f1a9a0;
+  border-radius: 30px;
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+  text-align: center;
   margin: auto;
 }
-.auth-title { font-size: 28px; font-weight: 800; color: #008080; margin-bottom: 22px; }
-.auth-input {
-  width: 100%; padding: 13px 15px; margin-bottom: 14px; border: 2px solid #333;
-  border-radius: 12px; font-size: 16px; font-weight: 600; text-align: center; background: #f8fafc; outline: none;
+.auth-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #008080;
+  margin-bottom: 22px;
 }
-.auth-input:focus { border-color: #0d9488; background: #fff; }
+.auth-input {
+  width: 100%;
+  padding: 13px 15px;
+  margin-bottom: 14px;
+  border: 2px solid #333;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  background: #f8fafc;
+  outline: none;
+}
+.auth-input:focus {
+  border-color: #0d9488;
+  background: #fff;
+}
 .auth-btn {
-  width: 100%; padding: 14px; margin-top: 8px; background: #6b8e23; color: #fff;
-  border: 2px solid #333; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 3px 5px 0 #222;
+  width: 100%;
+  padding: 14px;
+  margin-top: 8px;
+  background: #6b8e23;
+  color: #fff;
+  border: 2px solid #333;
+  border-radius: 30px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 3px 5px 0 #222;
 }
 .auth-btn:disabled { opacity: 0.7; cursor: not-allowed; }
-.auth-links { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
-.link-btn { background: none; border: none; color: #1e40af; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: underline; }
-.auth-error { margin-top: 12px; color: #dc2626; font-size: 14px; font-weight: 600; min-height: 20px; }
-.logout-btn {
-  background: #ef4444; color: #fff; border: 2px solid #333; border-radius: 25px;
-  padding: 10px 28px; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 2px 3px 0 #222;
+.auth-links {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.welcome-user { font-size: 22px; font-weight: 800; color: #008080; margin-bottom: 18px; }
+.link-btn {
+  background: none;
+  border: none;
+  color: #1e40af;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.auth-error {
+  margin-top: 12px;
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 20px;
+}
+.logout-btn {
+  background: #ef4444;
+  color: #fff;
+  border: 2px solid #333;
+  border-radius: 25px;
+  padding: 10px 28px;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 2px 3px 0 #222;
+}
+.welcome-user {
+  font-size: 22px;
+  font-weight: 800;
+  color: #008080;
+  margin-bottom: 18px;
+}
 
-/* DELETE DIALOGS */
+/* Password eye button */
+.pass-wrap {
+  position: relative;
+  width: 100%;
+  margin-bottom: 14px;
+  display: block;
+}
+.pass-wrap .auth-input {
+  margin-bottom: 0 !important;
+  padding-right: 48px !important;
+  text-align: left !important;
+  width: 100% !important;
+}
+.eye-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  line-height: 1;
+}
+.eye-btn.active {
+  background: #fef3c7;
+  border-color: #facc15;
+}
+
+/* ========== DELETE DIALOGS ========== */
 .delete-dialog-overlay {
   position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55);
   display: none; align-items: center; justify-content: center; z-index: 99999; padding: 20px;
@@ -245,10 +415,13 @@ table.entries td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-s
 .delete-dialog-title { font-size: 21px; font-weight: 800; color: #dc2626; margin-bottom: 12px; }
 .delete-dialog-message { font-size: 16px; font-weight: 600; color: #334155; line-height: 1.5; margin-bottom: 22px; }
 .delete-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
-.cancel-delete-btn, .confirm-delete-btn { border: none; border-radius: 8px; padding: 10px 20px; font-size: 15px; font-weight: 700; cursor: pointer; }
+.cancel-delete-btn, .confirm-delete-btn {
+  border: none; border-radius: 8px; padding: 10px 20px; font-size: 15px; font-weight: 700; cursor: pointer;
+}
 .cancel-delete-btn { background: #e5e7eb; color: #111827; border: 2px solid #64748b; }
 .confirm-delete-btn { background: #dc2626; color: #fff; border: 2px solid #991b1b; }
 
+/* User menu */
 .user-menu-wrap { position: absolute; top: 18px; right: 18px; z-index: 1000; }
 .user-menu-btn {
   width: 46px; height: 46px; border: 2px solid #facc15; border-radius: 50%;
@@ -266,6 +439,7 @@ table.entries td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-s
 }
 .user-menu button:hover { background: #fef3c7; }
 
+/* Profile */
 .profile-panel {
   width: min(92%, 500px); margin: 35px auto; padding: 30px 24px;
   background: rgba(255,255,255,0.96); border-radius: 22px; box-shadow: 0 15px 40px rgba(0,0,0,0.15);
@@ -278,9 +452,20 @@ table.entries td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-s
 .profile-row { display: flex; justify-content: space-between; gap: 20px; padding: 16px 4px; border-bottom: 1px solid #e5e7eb; }
 .profile-label { font-size: 14px; font-weight: 700; color: #64748b; }
 .profile-value { font-size: 16px; font-weight: 700; color: #0f172a; text-align: right; word-break: break-word; }
+.delete-account-btn {
+  background: #dc2626; color: #fff; border: 2px solid #7f1d1d; border-radius: 12px;
+  padding: 12px 28px; font-size: 15px; font-weight: 700; cursor: pointer;
+}
 
-/* DASHBOARD */
-.dashboard-screen { min-height: 100vh; overflow-y: auto; overflow-x: hidden; padding-bottom: 40px; }
+/* ========== DASHBOARD – ONLY THIS SCROLLS ========== */
+.dashboard-screen {
+  min-height: 100%;
+  height: 100%;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  padding-bottom: 40px;
+  -webkit-overflow-scrolling: touch;
+}
 .dashboard-panel { width: min(95%, 1100px); margin: 25px auto 50px; padding-bottom: 40px; }
 .dashboard-filter-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 28px; flex-wrap: wrap; }
 .dash-select-pill { background: #ffffff; border: 2px solid #0f172a; border-radius: 30px; padding: 8px 18px; box-shadow: 3px 4px 0 #0f172a; min-width: 140px; }
@@ -308,10 +493,12 @@ table.entries td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-s
 .summary-item { display: flex; align-items: center; gap: 12px; padding: 14px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; }
 .summary-icon { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; border-radius: 12px; font-size: 21px; }
 .summary-label { font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 3px; }
-.positive-text { color: #059669 !important; } .negative-text { color: #dc2626 !important; }
+.positive-text { color: #059669 !important; }
+.negative-text { color: #dc2626 !important; }
 .summary-item.positive { border-left: 4px solid #10b981; }
 .summary-item.negative { border-left: 4px solid #ef4444; }
 
+/* Bottom message */
 .bottom-msg-bar {
   position: fixed; left: 50%; bottom: 25px; transform: translateX(-50%) translateY(120px);
   background: #0f172a; color: #fff; border: 2px solid #facc15; padding: 12px 22px;
@@ -323,52 +510,84 @@ table.entries td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-s
 .bottom-msg-bar.error { background: #dc2626; border-color: #fff; }
 .bottom-msg-bar.success { background: #0f172a; border-color: #22c55e; }
 
-.pass-wrap{ position: relative; width: 100%; margin-bottom: 14px; display: block; }
-.pass-wrap .auth-input{ margin-bottom: 0 !important; padding-right: 45px !important; text-align: left !important; width: 100% !important; }
-.eye-btn{
-  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-  background: #fff; border: 1px solid #ddd; border-radius: 50%;
-  width: 30px; height: 30px; font-size: 16px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; z-index: 5;
-}
-.eye-btn.active{ background: #fef3c7; border-color: #facc15; }
-
-.delete-account-btn {
-  background: #dc2626; color: #fff; border: 2px solid #7f1d1d; border-radius: 12px;
-  padding: 12px 28px; font-size: 15px; font-weight: 700; cursor: pointer;
-}
-
-/* ================= MOBILE REPAIR - 900px & 600px ================= */
+/* ================= MOBILE ================= */
 @media (max-width: 900px) {
   body { align-items: stretch; }
-  .app-frame { max-width: none; max-height: none; width: 100vw; height: 100dvh; min-height: 100dvh; border-radius: 0; }
+  .app-frame {
+    max-width: none;
+    max-height: none;
+    width: 100vw;
+    height: 100dvh;
+    min-height: 100dvh;
+    border-radius: 0;
+  }
   .dashboard-cards { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 600px) {
-  body { overflow: auto; align-items: flex-start; }
-  .app-frame { width: 100vw; height: auto; min-height: 100dvh; border-radius: 0; display: block; }
-  .screen { padding: 10px; padding-bottom: 110px; position: relative; height: auto; min-height: 100dvh; }
-  .screen.active { min-height: 100dvh; height: auto; }
-  .app-bg { padding-top: 58px; padding-bottom: 110px !important; }
+  body { overflow: hidden; align-items: stretch; }
+  .app-frame {
+    width: 100vw;
+    height: 100dvh;
+    min-height: 100dvh;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    display: block;
+    overflow: hidden;
+  }
+  .screen,
+  .screen.active {
+    padding: 10px;
+    padding-bottom: 110px;
+    position: relative;
+    height: 100%;
+    min-height: 100dvh;
+    overflow: hidden !important;
+  }
+  .app-bg { padding-top: 58px; padding-bottom: 30px !important; height: 100%; overflow: hidden !important; }
   .back-btn { top: 10px; left: 10px; padding: 7px 14px; font-size: 13px; }
   .title-cloud { font-size: 18px; padding: 7px 22px; }
-  .panel { padding: 12px; border-radius: 18px; padding-bottom: 85px; min-height: auto; }
+  .panel {
+    padding: 12px;
+    border-radius: 18px;
+    padding-bottom: 65px; /* 80px → 65px */
+    min-height: auto;
+    height: 100%;
+  }
   .top-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .pill { grid-column: 1 / -1; text-align: center; font-size: 15px; }
   .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .teal-pill, .date-pill, .done-btn { flex: unset; width: 100%; }
-  .table-wrap { max-height: 380px; border-radius: 10px; }
+  .table-wrap {
+    height: 240px;
+    max-height: 240px;
+  }
   table.entries { min-width: 700px; font-size: 13px; }
-  .bottom-row { flex-direction: column; gap: 10px; padding-bottom: 20px; margin-bottom: 10px; }
-  .total-box, .pdf-btn { width: 100%; text-align: center; }
-  
+  .bottom-row {
+    left: 12px;
+    right: 12px;
+    bottom: 20px; /* 15px → 20px (ઉપર) */
+    flex-direction: column;
+    gap: 10px;
+  }
+  .total-box {
+    padding: 8px 12px;
+    font-size: 15px;
+    width: 100%;
+    text-align: center;
+  }
+  .pdf-btn {
+    width: 100%;
+    text-align: center;
+  }
+
   #transactionScreen .input-row .payer-input { grid-column: 1; grid-row: 1; }
   #transactionScreen .input-row .receiver-input { grid-column: 2; grid-row: 1; }
   #transactionScreen .input-row .amount-input { grid-column: 1; grid-row: 2; }
   #transactionScreen .input-row .date-pill { grid-column: 2; grid-row: 2; }
   #transactionScreen .input-row .done-btn { grid-column: 1 / -1; grid-row: 3; }
-  
+
   #expenseScreen .input-row { grid-template-columns: 1fr 1fr; }
   #expenseScreen .input-row #expName { grid-column: 1; }
   #expenseScreen .input-row #expAmount { grid-column: 2; }
@@ -380,30 +599,32 @@ table.entries td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; white-s
   .user-menu-wrap { top: 12px; right: 12px; }
   .profile-row { flex-direction: column; align-items: flex-start; gap: 5px; }
 
-  /* Home screen mobile */
+  /* Home mobile */
   .deco.calc { top: 18px; left: 16px; font-size: 38px; }
   .deco.wallet-top { top: 18px; right: 16px; font-size: 36px; }
   .deco.shiva { top: 10px; font-size: 52px; }
   .deco.om { top: 130px; right: 18px; font-size: 52px; }
   .deco.feather { bottom: 14px; left: 14px; font-size: 50px; }
   .deco.krishna { bottom: 10px; right: 14px; font-size: 56px; }
-  .home-panel { 
-    padding: 36px 26px; 
-    border-radius: 32px; 
-    margin-top: 0; 
-    max-width: 92%; 
+  .home-panel {
+    padding: 36px 26px;
+    border-radius: 32px;
+    margin-top: 0;
+    max-width: 92%;
     width: 92%;
-    transform: scale(1.05);
   }
   .welcome-user { font-size: 21px; margin-bottom: 20px; font-weight: 900; }
   .btn-with-icon { gap: 12px; margin: 18px 0; }
   .side-icon { font-size: 40px; }
-  .nav-btn { 
-    width: 235px; 
-    padding: 16px 16px; 
-    font-size: 18px; 
+  .nav-btn {
+    width: 235px;
+    padding: 16px 16px;
+    font-size: 18px;
     border-radius: 32px;
     box-shadow: 4px 6px 0 #222;
   }
   .logout-btn { padding: 11px 32px; font-size: 15px; margin-top: 10px; }
+
+  /* Auth mobile */
+  .auth-panel { max-width: 92%; padding: 28px 20px; }
 }
