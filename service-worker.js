@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mkm-expense-v4.7'; // design badle tyare v4.8 karje
+const CACHE_NAME = 'mkm-expense-v5.1'; // design badle tyare v4.8 karje
 const STATIC_ASSETS = [
   './',
   './khatu.html',
