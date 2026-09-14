@@ -819,12 +819,17 @@ if ('serviceWorker' in navigator) {
 
 
 /* ================= OFFLINE PAGE ================= */
+
+/* ================= OFFLINE PAGE ================= */
 function showOfflineScreen() {
-  // પૂરી app છુપાવી દો
+  // આખી app છુપાવી દો
   const appFrame = document.querySelector('.app-frame');
   if (appFrame) {
     appFrame.style.display = 'none';
   }
+
+  // body background પણ સેટ કરો
+  document.body.style.background = 'linear-gradient(180deg, #87ceeb 0%, #4a5568 25%, #311847 50%, #e65100 80%, #ff8f00 100%)';
 
   // Offline screen બતાવો
   const offline = document.getElementById('offlineScreen');
@@ -841,9 +846,10 @@ function checkInternetAndReload() {
   }
 }
 
-// Internet આવે ત્યારે automatically reload
+// Internet આવે ત્યારે automatic reload
 window.addEventListener('online', () => {
-  if (document.getElementById('offlineScreen')?.classList.contains('active')) {
+  const offline = document.getElementById('offlineScreen');
+  if (offline && offline.style.display === 'block') {
     location.reload();
   }
 });
