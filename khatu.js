@@ -2,17 +2,17 @@ const SUPABASE_URL = "https://fdddjqakdobjqgimnsdv.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkZGRqcWFrZG9ianFnaW1uc2R2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MDYzNDgsImV4cCI6MjEwNDM4MjM0OH0.UXtoDhglVxSTW65lS64uT37YkfHnVHPEyZak_3Ir39M";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let expenses = [];
-let transactions = [];
-let editExpenseId = null;
-let editTransactionId = null;
-let profileDashboardBackScreen = null;
-let pendingDeleteType = null;
-let pendingDeleteId = null;
-let passwordTimers = {};
-let isSendingReset = false;
-let lastResetSentAt = localStorage.getItem('lastResetSentAt') || 0;
-let currentUserId = null;
+var expenses = [];
+var transactions = [];
+var editExpenseId = null;
+var editTransactionId = null;
+var profileDashboardBackScreen = null;
+var pendingDeleteType = null;
+var pendingDeleteId = null;
+var passwordTimers = {};
+var isSendingReset = false;
+var lastResetSentAt = localStorage.getItem('lastResetSentAt') || 0;
+var currentUserId = null;
 
 const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
