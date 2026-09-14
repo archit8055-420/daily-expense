@@ -820,22 +820,18 @@ if ('serviceWorker' in navigator) {
 
 /* ================= OFFLINE PAGE ================= */
 
-/* ================= OFFLINE PAGE ================= */
 function showOfflineScreen() {
-  // આખી app છુપાવી દો
   const appFrame = document.querySelector('.app-frame');
-  if (appFrame) {
-    appFrame.style.display = 'none';
-  }
-
-  // body background પણ સેટ કરો
-  document.body.style.background = 'linear-gradient(180deg, #87ceeb 0%, #4a5568 25%, #311847 50%, #e65100 80%, #ff8f00 100%)';
-
-  // Offline screen બતાવો
   const offline = document.getElementById('offlineScreen');
-  if (offline) {
-    offline.style.display = 'block';
-  }
+  if (appFrame) appFrame.style.display = 'none';
+  if (offline) offline.classList.add('show'); // <-- AA J KHAS CHE
+}
+
+function hideOfflineScreen() {
+  const appFrame = document.querySelector('.app-frame');
+  const offline = document.getElementById('offlineScreen');
+  if (appFrame) appFrame.style.display = '';
+  if (offline) offline.classList.remove('show');
 }
 
 function checkInternetAndReload() {
@@ -846,10 +842,6 @@ function checkInternetAndReload() {
   }
 }
 
-// Internet આવે ત્યારે automatic reload
-window.addEventListener('online', () => {
-  const offline = document.getElementById('offlineScreen');
-  if (offline && offline.style.display === 'block') {
-    location.reload();
-  }
-});
+// Offline hoy tyare auto show
+window.addEventListener('offline', showOfflineScreen);
+window.addEventListener('online', () => location.reload());
