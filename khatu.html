@@ -20,24 +20,6 @@
 
 
 <body>
-<!-- OFFLINE SCREEN -->
-<div id="offlineScreen" class="screen" style="display:none; background: linear-gradient(180deg, #87ceeb 0%, #4a5568 25%, #311847 50%, #e65100 80%, #ff8f00 100%);">
-  <div style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; padding:20px;">
-    <div class="auth-panel" style="text-align:center; max-width:380px; width:100%;">
-      <div style="font-size:75px; margin-bottom:18px;">📡</div>
-      <div class="auth-title" style="color:#dc2626; font-size:26px; margin-bottom:14px;">
-        No Internet Connection
-      </div>
-      <div style="font-size:16px; color:#334155; line-height:1.6; margin-bottom:28px; font-weight:600;">
-        Please connect your device to the internet<br>
-        and try again.
-      </div>
-      <button class="auth-btn" onclick="checkInternetAndReload()" style="background:#0f766e;">
-        Try Again
-      </button>
-    </div>
-  </div>
-</div>
 <div class="app-frame">
 
   <!-- LOGIN SCREEN -->
@@ -229,6 +211,25 @@
     </div>
   </div>
 
+</div>
+
+<!-- ========== OFFLINE SCREEN (app-frameની બહાર) ========== -->
+<div id="offlineScreen" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:999999; background: linear-gradient(180deg, #87ceeb 0%, #4a5568 25%, #311847 50%, #e65100 80%, #ff8f00 100%);">
+  <div style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; padding:20px;">
+    <div style="background:rgba(255,255,255,0.95); border:3px solid #f1a9a0; border-radius:30px; padding:40px 30px; text-align:center; max-width:380px; width:100%; box-shadow:0 15px 35px rgba(0,0,0,0.3);">
+      <div style="font-size:75px; margin-bottom:18px;">📡</div>
+      <div style="font-size:26px; font-weight:800; color:#dc2626; margin-bottom:14px;">
+        No Internet Connection
+      </div>
+      <div style="font-size:16px; color:#334155; line-height:1.6; margin-bottom:28px; font-weight:600;">
+        Please connect your device to the internet<br>
+        and try again.
+      </div>
+      <button onclick="checkInternetAndReload()" style="width:100%; padding:14px; background:#0f766e; color:white; border:2px solid #333; border-radius:30px; font-size:18px; font-weight:bold; cursor:pointer; box-shadow:3px 5px 0 #222;">
+        Try Again
+      </button>
+    </div>
+  </div>
 </div>
 
 <div id="bottomMsgBar" class="bottom-msg-bar"></div>
