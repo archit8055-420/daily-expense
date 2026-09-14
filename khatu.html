@@ -120,7 +120,12 @@
     <button class="back-btn" onclick="showScreen('home')">← Home</button>
     <div class="user-menu-wrap">
       <button class="user-menu-btn" onclick="toggleUserMenu('expenseUserMenu')">👤</button>
-      <div id="expenseUserMenu" class="user-menu"><button onclick="openProfile('expense')">Profile</button><button onclick="openDashboard('expense')">Dashboard</button></div>
+      <div id="expenseUserMenu" class="user-menu">
+        <button onclick="openProfile('expense')">Profile</button>
+        <button onclick="openDashboard('expense')">Dashboard</button>
+        <button onclick="openFilter('expense')">Filter</button>
+      </div>
+
     </div>
     <div class="title-cloud-wrap"><div class="title-cloud">Daily Expense</div></div>
     <div class="panel">
@@ -129,15 +134,7 @@
         <div class="select-pill"><select id="expMonth" onchange="renderExpenses()"></select></div>
         <div class="select-pill"><select id="expYear" onchange="renderExpenses()"></select></div>
       </div>
-      <div class="top-row" style="margin-top:10px; margin-bottom:8px; border-bottom:none; padding-bottom:0;">
-        <div class="pill" style="background:#0f766e; color:white; font-size:14px;">Search</div>
-        <input type="text" id="expSearch" class="teal-pill" 
-              placeholder="Search Your Record" 
-              oninput="renderExpenses()" 
-              style="flex:2; text-align:left; padding-left:14px;">
-        <button type="button" class="done-btn" style="background:#64748b; padding:10px 16px;" 
-                onclick="document.getElementById('expSearch').value=''; renderExpenses();">Clear</button>
-      </div>
+      
 
       <div class="section-label-wrap"><span class="section-label">Add Expense</span></div>
       <form class="input-row" id="expForm" onsubmit="event.preventDefault(); addOrUpdateExpense();">
@@ -156,7 +153,11 @@
     <button class="back-btn" onclick="showScreen('home')">← Home</button>
     <div class="user-menu-wrap">
       <button class="user-menu-btn" onclick="toggleUserMenu('transactionUserMenu')">👤</button>
-      <div id="transactionUserMenu" class="user-menu"><button onclick="openProfile('transaction')">Profile</button><button onclick="openDashboard('transaction')">Dashboard</button></div>
+      <div id="transactionUserMenu" class="user-menu">
+        <button onclick="openProfile('transaction')">Profile</button>
+        <button onclick="openDashboard('transaction')">Dashboard</button>
+        <button onclick="openFilter('transaction')">Filter</button>
+      </div>
     </div>
     <div class="title-cloud-wrap"><div class="title-cloud">Money Transaction</div></div>
     <div class="panel">
@@ -207,7 +208,73 @@
     </div>
   </div>
 
+  <!-- ================= FILTER SCREEN ================= -->
+<div id="filterScreen" class="screen app-bg">
+  <button class="back-btn" onclick="goBack()">← Back</button>
+  
+  <div class="title-cloud-wrap">
+    <div class="title-cloud" id="filterTitle">Filter Your Data</div>
+  </div>
+
+  <div class="panel">
+    
+    <!-- Month & Year -->
+    <div class="top-row">
+      <div class="pill">Select Month & Year</div>
+      <div class="select-pill">
+        <select id="filterMonth" onchange="renderFilterResults()"></select>
+      </div>
+      <div class="select-pill">
+        <select id="filterYear" onchange="renderFilterResults()"></select>
+      </div>
+    </div>
+
+    <!-- Repay Buttons (ફક્ત Transaction માટે) -->
+    <div id="repayFilterRow" class="top-row" style="margin-top:10px; border-bottom:none; padding-bottom:0; display:none; gap:10px; justify-content:center;">
+      <button type="button" id="btnAllRepay" onclick="setRepayFilter('all')" 
+              style="background:#f89100; color:white; border:none; border-radius:20px; padding:8px 16px; font-weight:bold; cursor:pointer;">
+        All Data
+      </button>
+      <button type="button" id="btnRepayCompleted" onclick="setRepayFilter('completed')" 
+              style="background:#059669; color:white; border:none; border-radius:20px; padding:8px 16px; font-weight:bold; cursor:pointer;">
+        Repay Completed
+      </button>
+      <button type="button" id="btnRemaining" onclick="setRepayFilter('remaining')" 
+              style="background:#dc2626; color:white; border:none; border-radius:20px; padding:8px 16px; font-weight:bold; cursor:pointer;">
+        Remaining
+      </button>
+      
+    </div>
+
+    <!-- Search Box -->
+    <div class="top-row" style="margin-top:12px; border-bottom:none; padding-bottom:0; display:flex; align-items:center; gap:10px;">
+      <div class="pill" style="background:#0f766e; color:white; flex-shrink:0;">Search</div>
+      <input type="text" id="filterSearch" class="teal-pill" 
+             placeholder="Search your Record" 
+             oninput="renderFilterResults()" 
+             style="flex:1; text-align:center; background:#115e59; color:white;">
+      <button type="button" 
+              onclick="document.getElementById('filterSearch').value=''; renderFilterResults();"
+              style="background:#5397f6; color:white; border:none; border-radius:8px; 
+                     padding:10px 14px; font-size:14px; font-weight:bold; cursor:pointer; flex-shrink:0;">
+        Clear
+      </button>
+    </div>
+
+    <!-- Results Table -->
+    <div class="table-wrap" id="filterTableWrap" style="flex:1; margin-top:15px; height :330px; overflow-y:auto;">
+      <div class="empty-note">Type something to search...</div>
+    </div>
+
+    <!-- Total + PDF -->
+    <div class="bottom-row" style="margin-top:12px; flex-shrink:0;">
+      <div class="total-box" id="filterTotalBox">Total : ₹0.00</div>
+      <button type="button" class="pdf-btn" onclick="downloadFilterPDF()">Download PDF</button>
+    </div>
+
+  </div>
 </div>
+
 
 <!-- ========== OFFLINE SCREEN (app-frameની બહાર) ========== -->
 <!-- ========== OFFLINE SCREEN (app-frame ni BAHAR rakho) ========== -->
