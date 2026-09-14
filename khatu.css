@@ -2218,3 +2218,18 @@ table.entries tr.selected-row {
   background: #fef3c7;
   border-color: #facc15;
 }
+
+/* Offline Screen Force Full Screen */
+#offlineScreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 99999 !important;
+  display: none;
+}
+
+#offlineScreen.active {
+  display: flex !important;
+}
