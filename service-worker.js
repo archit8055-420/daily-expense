@@ -1,27 +1,32 @@
-const CACHE_NAME = 'mkm-expense-v4.6'; // v3 kari didhu etle juna badha cache auto delete thai jase
+const CACHE_NAME = 'mkm-expense-v4.7'; // design badle tyare v4.8 karje
 const STATIC_ASSETS = [
   './',
   './khatu.html',
   './khatu.css',
-  './khatu.js', // taro main js file nu naam je hoy e lakhi de
+  './khatu.js',
   './manifest.json'
 ];
 
-// Install - khali static file cache karva
+// Install - static files cache
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
-  );
   self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(STATIC_ASSETS);
+    })
+  );
 });
 
-// Activate - juna cache delete karva
+// Activate - juna cache delete
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
       return Promise.all(
         keys.map(key => {
-          if (key !== CACHE_NAME) return caches.delete(key);
+          if (key !== CACHE_NAME) {
+            console.log('Deleting old cache:', key);
+            return caches.delete(key);
+          }
         })
       );
     })
@@ -29,30 +34,41 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch - MAIN LOGIC
+// Fetch - MAIN LOGIC (Tari requirement mujab)
 self.addEventListener('fetch', event => {
+  // POST, PUT, DELETE ne cache na karvi
+  if (event.request.method !== 'GET') return;
+
   const url = event.request.url;
 
-  // 1. Supabase ni badhi request ne bilkul cache nahi karvi - direct network
-  if (url.includes('supabase.co') || url.includes('supabase.in')) {
+  // 1. Supabase + jspdf ne bilkul cache nahi karvu - hamesa fresh data
+  if (url.includes('supabase.co') || url.includes('supabase.in') || url.includes('jspdf')) {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // 2. Baki badha mate - Network First, pachhi Cache (taki mobile ma offline pan khule)
+  // 2. Baki badha mate - Network First, pachhi Cache
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        // Static file hoy to cache ma update kari de
-        if (event.request.method === 'GET' && response.status === 200) {
+        // Saro response hoy to cache ma update kari de
+        if (response && response.status === 200) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, clone);
+          });
         }
         return response;
       })
       .catch(() => {
-        // Network fail thay to j cache thi aapvu
-        return caches.match(event.request);
+        // Network fail thay (offline) to cache thi aapvu
+        return caches.match(event.request).then(cached => {
+          // Jo file j na male ane document mangyu hoy to khatu.html aapi de
+          if (cached) return cached;
+          if (event.request.destination === 'document') {
+            return caches.match('./khatu.html');
+          }
+        });
       })
   );
 });
