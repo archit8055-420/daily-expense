@@ -820,23 +820,22 @@ if ('serviceWorker' in navigator) {
 
 /* ================= OFFLINE PAGE ================= */
 function showOfflineScreen() {
-  // બધા screensને જબરદસ્તી છુપાવો
-  document.querySelectorAll('.screen').forEach(screen => {
-    screen.classList.remove('active');
-    screen.style.display = 'none';          // extra force
-  });
+  // પૂરી app છુપાવી દો
+  const appFrame = document.querySelector('.app-frame');
+  if (appFrame) {
+    appFrame.style.display = 'none';
+  }
 
   // Offline screen બતાવો
   const offline = document.getElementById('offlineScreen');
   if (offline) {
-    offline.classList.add('active');
-    offline.style.display = 'flex';       // force show
+    offline.style.display = 'block';
   }
 }
 
 function checkInternetAndReload() {
   if (navigator.onLine) {
-    location.reload(); // Internet આવી ગયું હોય તો page reload
+    location.reload();
   } else {
     showBottomMessage("Still no internet connection", "error");
   }
