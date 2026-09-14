@@ -20,7 +20,7 @@ const monthNames = ["January","February","March","April","May","June","July","Au
 
 /* ================= SCREEN & MENU ================= */
 function showScreen(name) {
-  const screens = ['loginScreen','signupScreen','resetPasswordScreen','passwordSuccessScreen','homeScreen','expenseScreen','transactionScreen','profileScreen','dashboardScreen'];
+  const screens = ['loginScreen','signupScreen','resetPasswordScreen','passwordSuccessScreen','homeScreen','expenseScreen','transactionScreen','profileScreen','dashboardScreen','filterScreen'];
   screens.forEach(id => document.getElementById(id)?.classList.remove('active'));
   document.getElementById(name + 'Screen')?.classList.add('active');
   document.querySelectorAll('.user-menu').forEach(menu => menu.classList.remove('active'));
@@ -107,15 +107,17 @@ async function checkAuth() {
     return;
   }
 
-  // SESSION CHECK - AA KHAS CHE
-  const user = await getCurrentUser();
-  if (user) {
-    updateUsernameDisplay(user);
-    showScreen('home');
-    await loadExpenses();
-    await loadTransactions();
-  } else {
-    showScreen('login');
+  // Hamesa login j kholvo
+  showScreen('login');
+  
+  // Jo email/password save hoy to auto bhari deva
+  const savedEmail = localStorage.getItem('savedEmail');
+  const savedPass = localStorage.getItem('savedPassword');
+  if(savedEmail && document.getElementById('loginEmail')){
+    document.getElementById('loginEmail').value = savedEmail;
+  }
+  if(savedPass && document.getElementById('loginPassword')){
+    document.getElementById('loginPassword').value = savedPass;
   }
 }
 
@@ -249,21 +251,17 @@ async function performDeleteExpense(id) {
 function renderExpenses() {
   const m = parseInt(document.getElementById('expMonth').value, 10);
   const y = parseInt(document.getElementById('expYear').value, 10);
-  const search = (document.getElementById('expSearch')?.value || '').trim().toLowerCase();
 
-  const monthData = expenses.filter(e => {
+  const filtered = expenses.filter(e => {
     const p = parseISODate(e.date_iso);
     return p && p.month === m && p.year === y;
   });
-
-  let filtered = monthData;
-  if (search) filtered = monthData.filter(e => (e.name || '').toLowerCase().includes(search));
 
   const wrap = document.getElementById('expenseTableWrap');
   const totalBox = document.querySelector('#expenseScreen .total-box');
 
   if (filtered.length === 0) {
-    wrap.innerHTML = `<div class="empty-note">${search ? 'No matching records found.' : 'No expense recorded for this month.'}</div>`;
+    wrap.innerHTML = `<div class="empty-note">No expense recorded for this month.</div>`;
   } else {
     const rows = filtered.map(e => {
       const parsed = parseExpenseName(e.name);
@@ -281,42 +279,21 @@ function renderExpenses() {
     }).join('');
 
     wrap.innerHTML = `<table class="entries">
-      <thead><tr>
-        <th class="col-date">Date</th>
-        <th class="col-name">Name</th>
-        <th class="col-amount">Amount (₹)</th>
-        <th class="col-action">Action</th>
-      </tr></thead>
+      <thead>
+        <tr>
+          <th class="col-date">Date</th>
+          <th class="col-name">Name</th>
+          <th class="col-amount">Amount (₹)</th>
+          <th class="col-action">Action</th>
+        </tr>
+      </thead>
       <tbody>${rows}</tbody>
     </table>`;
   }
 
-  const monthTotal = monthData.reduce((s, e) => s + Number(e.amount || 0), 0);
-  let filteredAmount = 0, totalQty = 0, mainUnit = '';
-  let isCement = false, isPetrol = false, isVeg = false;
-
-  filtered.forEach(e => {
-    filteredAmount += Number(e.amount || 0);
-    const parsed = parseExpenseName(e.name);
-    if (parsed.qty > 0) { totalQty += parsed.qty; if (!mainUnit) mainUnit = parsed.unit; }
-    if (/cement/i.test(e.name)) isCement = true;
-    if (/petrol|diesel/i.test(e.name)) isPetrol = true;
-    if (/vegetable|veg|fruit|sabzi|bhaji/i.test(e.name)) isVeg = true;
-  });
-
-  let totalHTML = `Total : ₹${monthTotal.toFixed(2)}`;
-  if (search && filtered.length > 0) {
-    if (totalQty > 0 && mainUnit) {
-      if (isCement) totalHTML += ` &nbsp;|&nbsp; Cement : <b>${totalQty} Bags</b> (₹${filteredAmount.toFixed(2)})`;
-      else if (isPetrol) totalHTML += ` &nbsp;|&nbsp; Petrol : <b>${totalQty} Liter</b> (₹${filteredAmount.toFixed(2)})`;
-      else if (isVeg) totalHTML += ` &nbsp;|&nbsp; Total : <b>${totalQty} Kg</b> (₹${filteredAmount.toFixed(2)})`;
-      else totalHTML += ` &nbsp;|&nbsp; Qty : <b>${totalQty} ${mainUnit}</b> (₹${filteredAmount.toFixed(2)})`;
-    } else {
-      totalHTML += ` &nbsp;|&nbsp; Filtered : ₹${filteredAmount.toFixed(2)}`;
-    }
-  }
-
-  if (totalBox) totalBox.innerHTML = totalHTML;
+  const total = filtered.reduce((s, e) => s + Number(e.amount || 0), 0);
+  if (totalBox) totalBox.innerHTML = `Total : ₹${total.toFixed(2)}`;
+  
   scrollTableToBottom('expenseTableWrap');
 }
 
@@ -477,53 +454,40 @@ async function confirmDeleteAccount() {
 function downloadExpensePDF() {
   const m = parseInt(document.getElementById('expMonth').value, 10);
   const y = parseInt(document.getElementById('expYear').value, 10);
-  const search = (document.getElementById('expSearch')?.value || '').trim().toLowerCase();
 
-  let filtered = expenses.filter(e => {
+  const filtered = expenses.filter(e => {
     const p = parseISODate(e.date_iso);
     return p && p.month === m && p.year === y;
   });
-  if (search) filtered = filtered.filter(e => (e.name || '').toLowerCase().includes(search));
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  const title = search ? `Expense Report - ${search.toUpperCase()} - ${monthNames[m]} ${y}` : `Daily Expense Report - ${monthNames[m]} ${y}`;
-  doc.setFontSize(16); doc.text(title, 14, 18);
+  doc.setFontSize(16);
+  doc.text(`Daily Expense Report - ${monthNames[m]} ${y}`, 14, 18);
 
   let yPos = 30;
   doc.setFontSize(11);
-  doc.text('Date', 14, yPos); doc.text('Name', 50, yPos); doc.text('Amount (Rs)', 150, yPos);
-  yPos += 6; doc.line(14, yPos, 196, yPos); yPos += 8;
+  doc.text('Date', 14, yPos);
+  doc.text('Name', 50, yPos);
+  doc.text('Amount (Rs)', 150, yPos);
+  yPos += 6;
+  doc.line(14, yPos, 196, yPos);
+  yPos += 8;
 
-  let totalAmount = 0, totalQty = 0, mainUnit = '';
-  let isCement = false, isPetrol = false, isVeg = false;
-
+  let total = 0;
   filtered.forEach(e => {
     if (yPos > 270) { doc.addPage(); yPos = 20; }
     const parsed = parseExpenseName(e.name);
     doc.text(formatDate(e.date_iso), 14, yPos);
     doc.text(String(parsed.displayName || e.name).substring(0, 45), 50, yPos);
     doc.text(Number(e.amount).toFixed(2), 150, yPos);
-    totalAmount += Number(e.amount) || 0;
-    if (parsed.qty) { totalQty += parsed.qty; if (!mainUnit) mainUnit = parsed.unit; }
-    if (/cement/i.test(e.name)) isCement = true;
-    if (/petrol|diesel/i.test(e.name)) isPetrol = true;
-    if (/vegetable|veg|fruit|sabzi/i.test(e.name)) isVeg = true;
+    total += Number(e.amount) || 0;
     yPos += 8;
   });
 
-  yPos += 6;
-  doc.setFontSize(13); doc.setFont(undefined, 'bold');
-  if (totalQty > 0 && mainUnit) {
-    if (isCement) { doc.text(`Total Cement Bags : ${totalQty}`, 14, yPos); yPos += 8; doc.text(`Total Amount : Rs ${totalAmount.toFixed(2)}`, 14, yPos); }
-    else if (isPetrol) { doc.text(`Total Petrol : ${totalQty} Liter`, 14, yPos); yPos += 8; doc.text(`Total Amount : Rs ${totalAmount.toFixed(2)}`, 14, yPos); }
-    else if (isVeg) { doc.text(`Total Quantity : ${totalQty} Kg`, 14, yPos); yPos += 8; doc.text(`Total Amount : Rs ${totalAmount.toFixed(2)}`, 14, yPos); }
-    else { doc.text(`Total Qty : ${totalQty} ${mainUnit}  |  Amount : Rs ${totalAmount.toFixed(2)}`, 14, yPos); }
-  } else {
-    doc.text(`Total Expense : Rs ${totalAmount.toFixed(2)}`, 14, yPos);
-  }
-
-  doc.save(search ? `Expense_${search}_${monthNames[m]}_${y}.pdf` : `Daily_Expense_${monthNames[m]}_${y}.pdf`);
+  doc.setFontSize(13);
+  doc.text(`Total Expense : Rs ${total.toFixed(2)}`, 14, yPos + 6);
+  doc.save(`Daily_Expense_${monthNames[m]}_${y}.pdf`);
 }
 
 function downloadTransactionPDF() {
@@ -564,6 +528,8 @@ async function handleLogin() {
   const password = document.getElementById('loginPassword').value;
   const btn = document.getElementById('loginBtn');
   const errorEl = document.getElementById('loginError');
+  localStorage.setItem('savedEmail', email);
+  localStorage.setItem('savedPassword', password);
   errorEl.textContent = ''; btn.disabled = true; btn.textContent = 'Logging in...';
   try {
     expenses = []; transactions = []; currentUserId = null;
@@ -856,3 +822,433 @@ function checkInternetAndReload() {
 // Offline hoy tyare auto show
 window.addEventListener('offline', showOfflineScreen);
 window.addEventListener('online', () => location.reload());
+
+
+function openFilter(fromScreen) {
+  // Menu બંધ કરો
+  document.querySelectorAll('.user-menu').forEach(menu => menu.classList.remove('active'));
+
+  if (fromScreen === 'expense') {
+    // Expense screen પર જ રહો અને Search box પર focus કરો
+    showScreen('expense');
+    const searchInput = document.getElementById('expSearch');
+    if (searchInput) {
+      searchInput.focus();
+      // થોડું highlight કરવા માટે
+      searchInput.style.border = '2px solid #facc15';
+      setTimeout(() => {
+        searchInput.style.border = '';
+      }, 1500);
+    }
+  } 
+  else if (fromScreen === 'transaction') {
+    // Transactionમાં હજુ search નથી, તો message આપી શકાય
+    showBottomMessage("Filter feature is available in Daily Expense", "success");
+  }
+}
+
+
+/* ================= FILTER SCREEN ================= */
+function openFilter(fromScreen) {
+  profileDashboardBackScreen = fromScreen;
+  document.querySelectorAll('.user-menu').forEach(menu => menu.classList.remove('active'));
+  
+  // Month Year ભરો
+  fillMonthYear('filterMonth', 'filterYear');
+  
+  // Search clear કરો
+  const searchInput = document.getElementById('filterSearch');
+  if (searchInput) searchInput.value = '';
+  
+  showScreen('filter');
+  renderFilterResults();
+  
+  // Search પર focus
+  setTimeout(() => searchInput?.focus(), 200);
+}
+
+function renderFilterResults() {
+  const m = parseInt(document.getElementById('filterMonth')?.value || 0, 10);
+  const y = parseInt(document.getElementById('filterYear')?.value || new Date().getFullYear(), 10);
+  const search = (document.getElementById('filterSearch')?.value || '').trim().toLowerCase();
+
+  const wrap = document.getElementById('filterTableWrap');
+  const totalBox = document.getElementById('filterTotalBox');
+
+  // Selected monthના expenses
+  let filtered = expenses.filter(e => {
+    const p = parseISODate(e.date_iso);
+    return p && p.month === m && p.year === y;
+  });
+
+  // Search filter
+  if (search) {
+    filtered = filtered.filter(e => (e.name || '').toLowerCase().includes(search));
+  }
+
+  if (filtered.length === 0) {
+    wrap.innerHTML = `<div class="empty-note">${search ? 'No matching records found.' : 'No expense recorded for this month.'}</div>`;
+    totalBox.innerHTML = 'Total : ₹0.00';
+    return;
+  }
+
+  // Table
+  const rows = filtered.map(e => {
+    const parsed = parseExpenseName(e.name);
+    return `<tr>
+      <td class="col-date">${formatDate(e.date_iso)}</td>
+      <td class="col-name">${escapeHtml(parsed.displayName || e.name)}</td>
+      <td class="col-amount">₹${Number(e.amount).toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `<table class="entries">
+    <thead>
+      <tr>
+        <th class="col-date">Date</th>
+        <th class="col-name">Name</th>
+        <th class="col-amount">Amount (₹)</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+
+  // Smart Total
+  let totalAmount = 0;
+  let totalQty = 0;
+  let mainUnit = '';
+  let isCement = false, isPetrol = false, isVeg = false;
+
+  filtered.forEach(e => {
+    totalAmount += Number(e.amount || 0);
+    const parsed = parseExpenseName(e.name);
+    if (parsed.qty > 0) {
+      totalQty += parsed.qty;
+      if (!mainUnit) mainUnit = parsed.unit;
+    }
+    if (/cement/i.test(e.name)) isCement = true;
+    if (/petrol|diesel/i.test(e.name)) isPetrol = true;
+    if (/vegetable|veg|fruit|sabzi|bhaji/i.test(e.name)) isVeg = true;
+  });
+
+  let totalHTML = `Total : ₹${totalAmount.toFixed(2)}`;
+  if (search && totalQty > 0 && mainUnit) {
+    if (isCement) totalHTML = `Cement : <b>${totalQty} Bags</b> | ₹${totalAmount.toFixed(2)}`;
+    else if (isPetrol) totalHTML = `Petrol : <b>${totalQty} Liter</b> | ₹${totalAmount.toFixed(2)}`;
+    else if (isVeg) totalHTML = `Total : <b>${totalQty} Kg</b> | ₹${totalAmount.toFixed(2)}`;
+    else totalHTML = `Qty : <b>${totalQty} ${mainUnit}</b> | ₹${totalAmount.toFixed(2)}`;
+  }
+
+  totalBox.innerHTML = totalHTML;
+}
+
+function downloadFilterPDF() {
+  const monthVal = document.getElementById('filterMonth')?.value;
+  const y = parseInt(document.getElementById('filterYear')?.value || new Date().getFullYear(), 10);
+  const search = (document.getElementById('filterSearch')?.value || '').trim().toLowerCase();
+
+  let filtered = [];
+  let title = '';
+
+  if (filterType === 'expense') {
+    filtered = expenses.filter(e => {
+      const p = parseISODate(e.date_iso);
+      return p && p.month === parseInt(monthVal) && p.year === y;
+    });
+    if (search) filtered = filtered.filter(e => (e.name || '').toLowerCase().includes(search));
+    title = search ? `Expense Filter - ${search.toUpperCase()} - ${monthNames[monthVal]} ${y}` : `Expense Filter - ${monthNames[monthVal]} ${y}`;
+  } else {
+    // TRANSACTION
+    filtered = transactions.filter(t => {
+      const p = parseISODate(t.date_iso);
+      if (!p) return false;
+      if (monthVal === 'overall') return true;
+      return p.month === parseInt(monthVal) && p.year === y;
+    });
+    if (repayFilter === 'completed') filtered = filtered.filter(t => t.is_received);
+    if (repayFilter === 'remaining') filtered = filtered.filter(t => !t.is_received);
+    if (search) filtered = filtered.filter(t => (t.payer || '').toLowerCase().includes(search) || (t.receiver || '').toLowerCase().includes(search));
+    title = `Transaction Filter - ${monthVal === 'overall' ? 'Overall' : monthNames[monthVal]+' '+y} - ${repayFilter.toUpperCase()}`;
+  }
+
+  if (filtered.length === 0) return showBottomMessage("No data to download", "error");
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(14); doc.text(title, 14, 18);
+  let yPos = 30;
+
+  if (filterType === 'expense') {
+    doc.setFontSize(10); doc.text('Date', 14, yPos); doc.text('Name', 40, yPos); doc.text('Amount', 150, yPos); yPos+=8;
+    filtered.forEach(e => {
+      if (yPos > 270) { doc.addPage(); yPos = 20; }
+      doc.text(formatDate(e.date_iso), 14, yPos);
+      doc.text(String(parseExpenseName(e.name).displayName || e.name).substring(0,40), 40, yPos);
+      doc.text(Number(e.amount).toFixed(2), 150, yPos);
+      yPos+=7;
+    });
+  } else {
+    doc.setFontSize(9); doc.text('Date', 10, yPos); doc.text('Payer', 30, yPos); doc.text('Receiver', 60, yPos); doc.text('Amount', 110, yPos); doc.text('Repaid', 150, yPos); yPos+=8;
+    filtered.forEach(t => {
+      if (yPos > 270) { doc.addPage(); yPos = 20; }
+      doc.text(formatDate(t.date_iso), 10, yPos);
+      doc.text(String(t.payer).substring(0,15), 30, yPos);
+      doc.text(String(t.receiver).substring(0,15), 60, yPos);
+      doc.text(Number(t.amount).toFixed(2), 110, yPos);
+      doc.text(t.is_received ? 'Yes' : 'No', 150, yPos);
+      yPos+=7;
+    });
+  }
+  let total = filtered.reduce((s, i) => s + Number(i.amount || 0), 0);
+  yPos+=5; doc.setFontSize(12); doc.text(`Total: Rs ${total.toFixed(2)} (${filtered.length} records)`, 14, yPos);
+  doc.save(title.replace(/ /g,'_')+'.pdf');
+}
+
+
+/* ================= FILTER SCREEN ================= */
+let filterType = 'expense';      // 'expense' અથવા 'transaction'
+let repayFilter = 'all';       // 'all' | 'completed' | 'remaining'
+
+function openFilter(fromScreen) {
+  profileDashboardBackScreen = fromScreen;
+  document.querySelectorAll('.user-menu').forEach(menu => menu.classList.remove('active'));
+
+  filterType = fromScreen; // 'expense' અથવા 'transaction'
+  repayFilter = 'all';
+
+  // Title બદલો
+  const titleEl = document.getElementById('filterTitle');
+  if (titleEl) {
+    titleEl.textContent = filterType === 'transaction' 
+      ? 'Filter Your Transaction Data' 
+      : 'Filter Your Data';
+  }
+
+  // Month Year ભરો + Overall ઉમેરો
+  fillFilterMonthYear();
+
+  // Repay buttons બતાવો / છુપાવો
+  const repayRow = document.getElementById('repayFilterRow');
+  if (repayRow) {
+    repayRow.style.display = filterType === 'transaction' ? 'flex' : 'none';
+  }
+
+  // Search clear
+  const searchInput = document.getElementById('filterSearch');
+  if (searchInput) searchInput.value = '';
+
+  showScreen('filter');
+  renderFilterResults();
+  setTimeout(() => searchInput?.focus(), 200);
+}
+
+function fillFilterMonthYear() {
+  const monthSel = document.getElementById('filterMonth');
+  const yearSel = document.getElementById('filterYear');
+  if (!monthSel || !yearSel) return;
+
+  monthSel.innerHTML = '';
+  yearSel.innerHTML = '';
+
+  // Overall option (ફક્ત Transaction માટે)
+  if (filterType === 'transaction') {
+    monthSel.add(new Option('Overall', 'overall'));
+  }
+
+  monthNames.forEach((m, i) => monthSel.add(new Option(m, i)));
+
+  for (let y = 2000; y <= 2099; y++) {
+    yearSel.add(new Option(y, y));
+  }
+
+  const now = new Date();
+  // Default = current month (Overall નહીં)
+  if (filterType === 'transaction') {
+    monthSel.value = now.getMonth(); // January = 0
+  } else {
+    monthSel.value = now.getMonth();
+  }
+  yearSel.value = now.getFullYear();
+}
+
+function setRepayFilter(type) {
+  repayFilter = type;
+
+  // Badha button ne normal kari do
+  document.querySelectorAll('#repayFilterRow button').forEach(btn => {
+    btn.classList.remove('selected');
+  });
+
+  // Je click karyu e ne selected
+  if(type === 'completed') document.getElementById('btnRepayCompleted')?.classList.add('selected');
+  if(type === 'remaining') document.getElementById('btnRemaining')?.classList.add('selected');
+  if(type === 'all') document.getElementById('btnAllRepay')?.classList.add('selected');
+
+  renderFilterResults();
+}
+
+function renderFilterResults() {
+  const monthVal = document.getElementById('filterMonth')?.value;
+  const y = parseInt(document.getElementById('filterYear')?.value || new Date().getFullYear(), 10);
+  const search = (document.getElementById('filterSearch')?.value || '').trim().toLowerCase();
+
+  const wrap = document.getElementById('filterTableWrap');
+  const totalBox = document.getElementById('filterTotalBox');
+
+  let filtered = [];
+
+  if (filterType === 'expense') {
+    // ========== EXPENSE FILTER ==========
+    filtered = expenses.filter(e => {
+      const p = parseISODate(e.date_iso);
+      return p && p.month === parseInt(monthVal) && p.year === y;
+    });
+
+    if (search) {
+      filtered = filtered.filter(e => (e.name || '').toLowerCase().includes(search));
+    }
+
+    // Table
+    if (filtered.length === 0) {
+      wrap.innerHTML = `<div class="empty-note">${search ? 'No matching records found.' : 'No expense recorded.'}</div>`;
+      totalBox.innerHTML = 'Total : ₹0.00';
+      return;
+    }
+
+    const rows = filtered.map(e => {
+      const parsed = parseExpenseName(e.name);
+      return `<tr>
+        <td class="col-date">${formatDate(e.date_iso)}</td>
+        <td class="col-name">${escapeHtml(parsed.displayName || e.name)}</td>
+        <td class="col-amount">₹${Number(e.amount).toFixed(2)}</td>
+      </tr>`;
+    }).join('');
+
+    wrap.innerHTML = `<table class="entries">
+      <thead><tr>
+        <th class="col-date">Date</th>
+        <th class="col-name">Name</th>
+        <th class="col-amount">Amount (₹)</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+    // Smart Total
+    let totalAmount = 0, totalQty = 0, mainUnit = '';
+    let isCement = false, isPetrol = false, isVeg = false;
+
+    filtered.forEach(e => {
+      totalAmount += Number(e.amount || 0);
+      const parsed = parseExpenseName(e.name);
+      if (parsed.qty > 0) {
+        totalQty += parsed.qty;
+        if (!mainUnit) mainUnit = parsed.unit;
+      }
+      if (/cement/i.test(e.name)) isCement = true;
+      if (/petrol|diesel/i.test(e.name)) isPetrol = true;
+      if (/vegetable|veg|fruit|sabzi/i.test(e.name)) isVeg = true;
+    });
+
+    let totalHTML = `Total : ₹${totalAmount.toFixed(2)}`;
+    if (search && totalQty > 0 && mainUnit) {
+      if (isCement) totalHTML = `Cement : <b>${totalQty} Bags</b> | ₹${totalAmount.toFixed(2)}`;
+      else if (isPetrol) totalHTML = `Petrol : <b>${totalQty} Liter</b> | ₹${totalAmount.toFixed(2)}`;
+      else if (isVeg) totalHTML = `Total : <b>${totalQty} Kg</b> | ₹${totalAmount.toFixed(2)}`;
+      else totalHTML = `Qty : <b>${totalQty} ${mainUnit}</b> | ₹${totalAmount.toFixed(2)}`;
+    }
+    totalBox.innerHTML = totalHTML;
+
+  } else {
+    // ========== TRANSACTION FILTER ==========
+    filtered = transactions.filter(t => {
+      const p = parseISODate(t.date_iso);
+      if (!p) return false;
+
+      // Overall check
+      if (monthVal === 'overall') {
+        return true; // બધા
+      }
+      return p.month === parseInt(monthVal) && p.year === y;
+    });
+
+    // Repay filter
+    if (repayFilter === 'completed') {
+      filtered = filtered.filter(t => t.is_received === true);
+    } else if (repayFilter === 'remaining') {
+      filtered = filtered.filter(t => !t.is_received);
+    }
+
+    // Search (Payer / Receiver)
+    if (search) {
+      filtered = filtered.filter(t => 
+        (t.payer || '').toLowerCase().includes(search) || 
+        (t.receiver || '').toLowerCase().includes(search)
+      );
+    }
+
+    if (filtered.length === 0) {
+      wrap.innerHTML = `<div class="empty-note">${search ? 'No matching records found.' : 'No transactions found.'}</div>`;
+      totalBox.innerHTML = 'Total : ₹0.00';
+      return;
+    }
+
+    const rows = filtered.map(t => {
+      return `<tr>
+        <td class="col-date">${formatDate(t.date_iso)}</td>
+        <td class="col-txn-tofrom">${escapeHtml(t.payer)}</td>
+        <td class="col-txn-tofrom">${escapeHtml(t.receiver)}</td>
+        <td class="col-txn-amt">₹${Number(t.amount).toFixed(2)}</td>
+        <td class="col-date">${t.is_received ? 'Yes' : 'No'}</td>
+      </tr>`;
+    }).join('');
+
+    wrap.innerHTML = `<table class="entries">
+      <thead><tr>
+        <th class="col-date">Date</th>
+        <th class="col-txn-tofrom">Payer</th>
+        <th class="col-txn-tofrom">Receiver</th>
+        <th class="col-txn-amt">Amount</th>
+        <th class="col-date">Repaid</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+    const totalAmount = filtered.reduce((s, t) => s + Number(t.amount || 0), 0);
+    totalBox.innerHTML = `Total : ₹${totalAmount.toFixed(2)} (${filtered.length} records)`;
+  }
+}
+
+/* =========================
+   ROW CLICK HIGHLIGHT (4 seconds)
+========================= */
+
+let selectedRowTimer = null;
+
+function highlightRow(row) {
+  // પહેલાની selected row હટાવો
+  document.querySelectorAll('table.entries tbody tr.selected-row').forEach(r => {
+    r.classList.remove('selected-row');
+  });
+
+  // નવી row select કરો
+  row.classList.add('selected-row');
+
+  // પહેલાનો timer કાઢી નાખો
+  if (selectedRowTimer) {
+    clearTimeout(selectedRowTimer);
+  }
+
+  // 4 સેકન્ડ પછી highlight હટાવો
+  selectedRowTimer = setTimeout(() => {
+    row.classList.remove('selected-row');
+    selectedRowTimer = null;
+  }, 3500);
+}
+
+// Expense, Transaction અને Filter table પર click event
+document.addEventListener('click', function(e) {
+  const row = e.target.closest('table.entries tbody tr');
+  if (row) {
+    highlightRow(row);
+  }
+});
