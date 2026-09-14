@@ -120,25 +120,79 @@ async function deleteRow(tableName, id) {
 /* ================= EXPENSE ================= */
 async function loadExpenses() { expenses = await loadTable('expenses'); renderExpenses(); }
 async function addOrUpdateExpense() {
-  const user = await getCurrentUser(); if (!user) return showBottomMessage("User is not logged in", "error");
-  const nameInput = document.getElementById('expName'), amtInput = document.getElementById('expAmount');
+  const user = await getCurrentUser();
+  if (!user) return showBottomMessage("User is not logged in", "error");
+
+  const nameInput = document.getElementById('expName');
+  const amtInput = document.getElementById('expAmount');
   if (!nameInput.checkValidity()) return nameInput.reportValidity();
   if (!amtInput.checkValidity()) return amtInput.reportValidity();
-  const name = capitalizeFirstLetter(nameInput.value.trim()), amount = parseFloat(amtInput.value), date = document.getElementById('expDate').value || todayISO();
+
+  const name = capitalizeFirstLetter(nameInput.value.trim());
+  const amount = parseFloat(amtInput.value);
+  const date = document.getElementById('expDate').value || todayISO();
+
   const btn = document.getElementById('expDoneBtn');
-  btn.disabled = true; btn.textContent = editExpenseId!== null? 'Updating...' : 'Saving...';
+  btn.disabled = true;
+  btn.textContent = editExpenseId !== null ? 'Updating...' : 'Saving...';
+
   try {
-    if (editExpenseId!== null) {
-      if (!expenses.find(e => String(e.id) === String(editExpenseId))) throw new Error("You can only edit your own records.");
-      const { error } = await supabaseClient.from('expenses').update({ name, amount, date_iso: date }).eq('id', editExpenseId).eq('user_id', user.id);
-      if (error) throw error; showBottomMessage("Expense updated successfully", "success"); editExpenseId = null;
+    if (editExpenseId !== null) {
+      // ========== EDIT ==========
+      const updateData = { name, amount, date_iso: date };
+
+      if (isOnline && !String(editExpenseId).startsWith('local_')) {
+        const { error } = await supabaseClient.from('expenses')
+          .update(updateData)
+          .eq('id', editExpenseId)
+          .eq('user_id', user.id);
+        if (error) throw error;
+        showBottomMessage("Expense updated successfully", "success");
+      } else {
+        // Offline Edit
+        await addToPending({
+          type: 'update_expense',
+          data: { id: editExpenseId, ...updateData }
+        });
+
+        // Local array અપડેટ કરો
+        const idx = expenses.findIndex(e => String(e.id) === String(editExpenseId));
+        if (idx !== -1) {
+          expenses[idx] = { ...expenses[idx], ...updateData };
+        }
+        showBottomMessage("Updated offline. Will sync when internet comes.", "success");
+      }
+      editExpenseId = null;
+      document.getElementById('expDoneBtn').textContent = 'Done';
     } else {
-      const { error } = await supabaseClient.from('expenses').insert({ name, amount, date_iso: date, user_id: user.id });
-      if (error) throw error; showBottomMessage("Expense added successfully", "success");
+      // ========== ADD ==========
+      const newData = { name, amount, date_iso: date, user_id: user.id };
+
+      if (isOnline) {
+        const { error } = await supabaseClient.from('expenses').insert(newData);
+        if (error) throw error;
+        showBottomMessage("Expense added successfully", "success");
+      } else {
+        newData.id = 'local_' + Date.now();
+        newData._offline = true;
+        await addToPending({ type: 'add_expense', data: { name, amount, date_iso: date } });
+        expenses.push(newData);
+        showBottomMessage("Saved offline. Will sync when internet comes.", "success");
+      }
     }
-    nameInput.value = ''; amtInput.value = ''; await loadExpenses(); setTimeout(() => nameInput.focus(), 150);
-  } catch (err) { showBottomMessage(err.message, "error"); } finally { btn.disabled = false; btn.textContent = 'Done'; }
+
+    nameInput.value = '';
+    amtInput.value = '';
+    await loadExpenses();
+    setTimeout(() => nameInput.focus(), 150);
+  } catch (err) {
+    showBottomMessage(err.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Done';
+  }
 }
+
 function editExpense(id) {
   const item = expenses.find(e => String(e.id) === String(id)); if (!item) return;
   document.getElementById('expName').value = item.name; document.getElementById('expAmount').value = item.amount;
@@ -146,41 +200,143 @@ function editExpense(id) {
   editExpenseId = item.id; document.getElementById('expDoneBtn').textContent = 'Update';
 }
 function deleteExpense(id) { openDeleteDialog('expense', id); }
-async function performDeleteExpense(id) { if (await deleteRow('expenses', id)) { if (String(editExpenseId) === String(id)) { editExpenseId = null; document.getElementById('expDoneBtn').textContent = 'Done'; } showBottomMessage("Expense deleted", "success"); await loadExpenses(); } }
-function renderExpenses() {
-  const m = parseInt(document.getElementById('expMonth').value, 10), y = parseInt(document.getElementById('expYear').value, 10);
-  const filtered = expenses.filter(e => { const p = parseISODate(e.date_iso); return p && p.month === m && p.year === y; });
-  const wrap = document.getElementById('expenseTableWrap');
-  if (filtered.length === 0) wrap.innerHTML = '<div class="empty-note">No expense recorded for this month.</div>';
-  else {
-    wrap.innerHTML = `<table class="entries"><thead><tr><th class="col-date">Date</th><th class="col-name">Name</th><th class="col-amount">Amount (₹)</th><th class="col-action">Action</th></tr></thead><tbody>
-    ${filtered.map(e => `<tr><td class="col-date">${formatDate(e.date_iso)}</td><td class="col-name">${escapeHtml(e.name)}</td><td class="col-amount">₹${Number(e.amount).toFixed(2)}</td><td class="col-action"><div class="action-btns"><button class="edit-btn" onclick="editExpense('${jsAttr(e.id)}')">Edit</button><button class="del-btn" onclick="deleteExpense('${jsAttr(e.id)}')">Delete</button></div></td></tr>`).join('')}
-    </tbody></table>`;
+async function performDeleteExpense(id) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  if (String(id).startsWith('local_')) {
+    expenses = expenses.filter(e => String(e.id) !== String(id));
+    // pendingમાંથી પણ કાઢી નાખો જો હોય તો
+    const pending = await getPendingActions();
+    for (const p of pending) {
+      if (p.type === 'add_expense' && p.data && String(p.id) === String(id)) {
+        await removePending(p.id);
+      }
+    }
+    renderExpenses();
+    showBottomMessage("Deleted (offline)", "success");
+    return;
   }
-  document.getElementById('expTotal').textContent = filtered.reduce((s, e) => s + Number(e.amount), 0).toFixed(2);
-  scrollTableToBottom('expenseTableWrap');
+
+  if (isOnline) {
+    if (await deleteRow('expenses', id)) {
+      if (String(editExpenseId) === String(id)) {
+        editExpenseId = null;
+        document.getElementById('expDoneBtn').textContent = 'Done';
+      }
+      showBottomMessage("Expense deleted", "success");
+      await loadExpenses();
+    }
+  } else {
+    await addToPending({ type: 'delete_expense', data: { id } });
+    expenses = expenses.filter(e => String(e.id) !== String(id));
+    renderExpenses();
+    showBottomMessage("Deleted offline. Will sync when internet comes.", "success");
+  }
 }
+
+
 
 /* ================= TRANSACTION ================= */
 async function loadTransactions() { transactions = await loadTable('transactions'); renderTransactions(); }
 async function addOrUpdateTransaction() {
-  const user = await getCurrentUser(); if (!user) return showBottomMessage("User is not logged in", "error");
-  const fromInput = document.getElementById('txnFrom'), toInput = document.getElementById('txnTo'), amtInput = document.getElementById('txnAmount');
-  if (!fromInput.checkValidity() ||!toInput.checkValidity() ||!amtInput.checkValidity()) return (fromInput.reportValidity(), toInput.reportValidity(), amtInput.reportValidity());
-  const from = capitalizeFirstLetter(fromInput.value.trim()), to = capitalizeFirstLetter(toInput.value.trim()), amount = parseFloat(amtInput.value), date = document.getElementById('txnDate').value || todayISO();
-  const btn = document.getElementById('txnDoneBtn'); btn.disabled = true; btn.textContent = editTransactionId!== null? 'Updating...' : 'Saving...';
+  const user = await getCurrentUser();
+  if (!user) return showBottomMessage("User is not logged in", "error");
+
+  const fromInput = document.getElementById('txnFrom');
+  const toInput = document.getElementById('txnTo');
+  const amtInput = document.getElementById('txnAmount');
+
+  if (!fromInput.checkValidity() || !toInput.checkValidity() || !amtInput.checkValidity()) {
+    fromInput.reportValidity();
+    toInput.reportValidity();
+    amtInput.reportValidity();
+    return;
+  }
+
+  const from = capitalizeFirstLetter(fromInput.value.trim());
+  const to = capitalizeFirstLetter(toInput.value.trim());
+  const amount = parseFloat(amtInput.value);
+  const date = document.getElementById('txnDate').value || todayISO();
+
+  const btn = document.getElementById('txnDoneBtn');
+  btn.disabled = true;
+  btn.textContent = editTransactionId !== null ? 'Updating...' : 'Saving...';
+
   try {
-    if (editTransactionId!== null) {
-      if (!transactions.find(t => String(t.id) === String(editTransactionId))) throw new Error("You can only edit your own records.");
-      const { error } = await supabaseClient.from('transactions').update({ payer: from, receiver: to, amount, date_iso: date }).eq('id', editTransactionId).eq('user_id', user.id);
-      if (error) throw error; showBottomMessage("Transaction updated successfully", "success"); editTransactionId = null;
+    if (editTransactionId !== null) {
+      // ========== EDIT ==========
+      const updateData = { payer: from, receiver: to, amount, date_iso: date };
+
+      if (isOnline && !String(editTransactionId).startsWith('local_')) {
+        const { error } = await supabaseClient.from('transactions')
+          .update(updateData)
+          .eq('id', editTransactionId)
+          .eq('user_id', user.id);
+        if (error) throw error;
+        showBottomMessage("Transaction updated successfully", "success");
+      } else {
+        await addToPending({
+          type: 'update_transaction',
+          data: { id: editTransactionId, ...updateData }
+        });
+
+        const idx = transactions.findIndex(t => String(t.id) === String(editTransactionId));
+        if (idx !== -1) {
+          transactions[idx] = { ...transactions[idx], ...updateData };
+        }
+        showBottomMessage("Updated offline. Will sync when internet comes.", "success");
+      }
+      editTransactionId = null;
+      document.getElementById('txnDoneBtn').textContent = 'Done';
     } else {
-      const { error } = await supabaseClient.from('transactions').insert({ payer: from, receiver: to, amount, date_iso: date, is_received: false, received_date_iso: null, user_id: user.id });
-      if (error) throw error; showBottomMessage("Transaction added successfully", "success");
+      // ========== ADD ==========
+      const newData = {
+        payer: from,
+        receiver: to,
+        amount,
+        date_iso: date,
+        is_received: false,
+        received_date_iso: null,
+        user_id: user.id
+      };
+
+      if (isOnline) {
+        const { error } = await supabaseClient.from('transactions').insert(newData);
+        if (error) throw error;
+        showBottomMessage("Transaction added successfully", "success");
+      } else {
+        newData.id = 'local_' + Date.now();
+        newData._offline = true;
+        await addToPending({
+          type: 'add_transaction',
+          data: {
+            payer: from,
+            receiver: to,
+            amount,
+            date_iso: date,
+            is_received: false,
+            received_date_iso: null
+          }
+        });
+        transactions.push(newData);
+        showBottomMessage("Saved offline. Will sync when internet comes.", "success");
+      }
     }
-    fromInput.value = ''; toInput.value = ''; amtInput.value = ''; await loadTransactions(); setTimeout(() => fromInput.focus(), 150);
-  } catch (err) { showBottomMessage(err.message, "error"); } finally { btn.disabled = false; btn.textContent = 'Done'; }
+
+    fromInput.value = '';
+    toInput.value = '';
+    amtInput.value = '';
+    await loadTransactions();
+    setTimeout(() => fromInput.focus(), 150);
+  } catch (err) {
+    showBottomMessage(err.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Done';
+  }
 }
+
 function editTransaction(id) {
   const item = transactions.find(t => String(t.id) === String(id)); if (!item) return;
   document.getElementById('txnFrom').value = item.payer; document.getElementById('txnTo').value = item.receiver;
@@ -188,7 +344,33 @@ function editTransaction(id) {
   updateDateDisplay('txnDate', 'txnDateText'); editTransactionId = item.id; document.getElementById('txnDoneBtn').textContent = 'Update';
 }
 function deleteTransaction(id) { openDeleteDialog('transaction', id); }
-async function performDeleteTransaction(id) { if (await deleteRow('transactions', id)) { if (String(editTransactionId) === String(id)) { editTransactionId = null; document.getElementById('txnDoneBtn').textContent = 'Done'; } showBottomMessage("Transaction deleted", "success"); await loadTransactions(); } }
+async function performDeleteTransaction(id) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  if (String(id).startsWith('local_')) {
+    transactions = transactions.filter(t => String(t.id) !== String(id));
+    renderTransactions();
+    showBottomMessage("Deleted (offline)", "success");
+    return;
+  }
+
+  if (isOnline) {
+    if (await deleteRow('transactions', id)) {
+      if (String(editTransactionId) === String(id)) {
+        editTransactionId = null;
+        document.getElementById('txnDoneBtn').textContent = 'Done';
+      }
+      showBottomMessage("Transaction deleted", "success");
+      await loadTransactions();
+    }
+  } else {
+    await addToPending({ type: 'delete_transaction', data: { id } });
+    transactions = transactions.filter(t => String(t.id) !== String(id));
+    renderTransactions();
+    showBottomMessage("Deleted offline. Will sync when internet comes.", "success");
+  }
+}
 async function toggleReceived(id, isChecked) {
   const user = await getCurrentUser(); if (!user) return showBottomMessage("User is not logged in", "error");
   const { error } = await supabaseClient.from('transactions').update({ is_received: isChecked, received_date_iso: isChecked? todayISO() : null }).eq('id', id).eq('user_id', user.id);
@@ -457,6 +639,14 @@ function renderDashboard(month, year) {
 
 /* ================= EVENTS & UTILS ================= */
 document.addEventListener('DOMContentLoaded', async () => {
+
+  try {
+    await openDB();
+    console.log("IndexedDB ready");
+  } catch (err) {
+    console.error("IndexedDB error:", err);
+  }
+
   fillMonthYear('expMonth', 'expYear');
   fillMonthYear('txnMonth', 'txnYear');
   const todayStr = todayISO();
@@ -475,6 +665,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   await checkAuth();
 });
+
 function showBottomMessage(msg, type = 'success') {
   const bar = document.getElementById('bottomMsgBar');
   if (!bar) return;
@@ -670,87 +861,98 @@ function parseExpenseName(name) {
 }
 
 /* ================= RENDER EXPENSES (UPDATED) ================= */
-/* ================= RENDER EXPENSES (FIXED) ================= */
+/* ================= RENDER EXPENSES (FINAL - Month Total + Filtered Total) ================= */
 function renderExpenses() {
   const m = parseInt(document.getElementById('expMonth').value, 10);
   const y = parseInt(document.getElementById('expYear').value, 10);
   const searchInput = document.getElementById('expSearch');
   const search = (searchInput ? searchInput.value : '').trim().toLowerCase();
 
-  let filtered = expenses.filter(e => {
+  // 1. આખા મહિનાના બધા records
+  const monthData = expenses.filter(e => {
     const p = parseISODate(e.date_iso);
     return p && p.month === m && p.year === y;
   });
 
-  // Search filter
+  // 2. Filtered records
+  let filtered = monthData;
   if (search) {
-    filtered = filtered.filter(e => (e.name || '').toLowerCase().includes(search));
+    filtered = monthData.filter(e => (e.name || '').toLowerCase().includes(search));
   }
 
   const wrap = document.getElementById('expenseTableWrap');
   const totalBox = document.querySelector('#expenseScreen .total-box');
 
+  // ========== Table ==========
   if (filtered.length === 0) {
     wrap.innerHTML = `<div class="empty-note">${search ? 'No matching records found.' : 'No expense recorded for this month.'}</div>`;
-    if (totalBox) totalBox.innerHTML = `Total Expense : ₹0.00`;
-    return;
+  } else {
+    const rows = filtered.map(e => {
+      const parsed = parseExpenseName(e.name);
+      return `<tr>
+        <td class="col-date">${formatDate(e.date_iso)}</td>
+        <td class="col-name">${escapeHtml(parsed.displayName || e.name)}</td>
+        <td class="col-amount">₹${Number(e.amount).toFixed(2)}</td>
+        <td class="col-action">
+          <div class="action-btns">
+            <button class="edit-btn" onclick="editExpense('${jsAttr(e.id)}')">Edit</button>
+            <button class="del-btn" onclick="deleteExpense('${jsAttr(e.id)}')">Delete</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    wrap.innerHTML = `<table class="entries">
+      <thead>
+        <tr>
+          <th class="col-date">Date</th>
+          <th class="col-name">Name</th>
+          <th class="col-amount">Amount (₹)</th>
+          <th class="col-action">Action</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
   }
 
-  let totalAmount = 0;
+  // ========== Totals ==========
+  // આખા મહિનાનું Total (હંમેશા)
+  const monthTotal = monthData.reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  // Filtered Total + Qty
+  let filteredAmount = 0;
   let totalQty = 0;
   let mainUnit = '';
   let isCement = false, isPetrol = false, isVeg = false;
 
-  const rows = filtered.map(e => {
+  filtered.forEach(e => {
+    filteredAmount += Number(e.amount || 0);
     const parsed = parseExpenseName(e.name);
-    totalAmount += Number(e.amount) || 0;
-
     if (parsed.qty > 0) {
       totalQty += parsed.qty;
       if (!mainUnit) mainUnit = parsed.unit;
     }
-
     if (/cement/i.test(e.name)) isCement = true;
     if (/petrol|diesel/i.test(e.name)) isPetrol = true;
     if (/vegetable|veg|fruit|sabzi|bhaji/i.test(e.name)) isVeg = true;
+  });
 
-    return `<tr>
-      <td class="col-date">${formatDate(e.date_iso)}</td>
-      <td class="col-name">${escapeHtml(parsed.displayName || e.name)}</td>
-      <td class="col-amount">₹${Number(e.amount).toFixed(2)}</td>
-      <td class="col-action">
-        <div class="action-btns">
-          <button class="edit-btn" onclick="editExpense('${jsAttr(e.id)}')">Edit</button>
-          <button class="del-btn" onclick="deleteExpense('${jsAttr(e.id)}')">Delete</button>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
+  // Total Box Text
+  let totalHTML = `Total : ₹${monthTotal.toFixed(2)}`;
 
-  wrap.innerHTML = `<table class="entries">
-    <thead>
-      <tr>
-        <th class="col-date">Date</th>
-        <th class="col-name">Name</th>
-        <th class="col-amount">Amount (₹)</th>
-        <th class="col-action">Action</th>
-      </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>`;
-
-  // Smart Total
-  let totalHTML = `Total Expense : ₹${totalAmount.toFixed(2)}`;
-
-  if (totalQty > 0 && mainUnit) {
-    if (isCement) {
-      totalHTML = `Total Cement : <b>${totalQty} Bags</b> | ₹${totalAmount.toFixed(2)}`;
-    } else if (isPetrol) {
-      totalHTML = `Total Petrol : <b>${totalQty} Liter</b> | ₹${totalAmount.toFixed(2)}`;
-    } else if (isVeg) {
-      totalHTML = `Total : <b>${totalQty} Kg</b> | ₹${totalAmount.toFixed(2)}`;
+  if (search && filtered.length > 0) {
+    if (totalQty > 0 && mainUnit) {
+      if (isCement) {
+        totalHTML += ` &nbsp;|&nbsp; Cement : <b>${totalQty} Bags</b> (₹${filteredAmount.toFixed(2)})`;
+      } else if (isPetrol) {
+        totalHTML += ` &nbsp;|&nbsp; Petrol : <b>${totalQty} Liter</b> (₹${filteredAmount.toFixed(2)})`;
+      } else if (isVeg) {
+        totalHTML += ` &nbsp;|&nbsp; Total : <b>${totalQty} Kg</b> (₹${filteredAmount.toFixed(2)})`;
+      } else {
+        totalHTML += ` &nbsp;|&nbsp; Qty : <b>${totalQty} ${mainUnit}</b> (₹${filteredAmount.toFixed(2)})`;
+      }
     } else {
-      totalHTML = `Total Qty : <b>${totalQty} ${mainUnit}</b> | ₹${totalAmount.toFixed(2)}`;
+      totalHTML += ` &nbsp;|&nbsp; Filtered : ₹${filteredAmount.toFixed(2)}`;
     }
   }
 
@@ -759,4 +961,195 @@ function renderExpenses() {
   }
 
   scrollTableToBottom('expenseTableWrap');
+}
+
+
+/* ====================== INDEXEDDB + OFFLINE SUPPORT ====================== */
+
+const DB_NAME = 'ExpenseAppDB';
+const DB_VERSION = 1;
+let db = null;
+let isOnline = navigator.onLine;
+
+// IndexedDB ખોલો
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      db = request.result;
+      resolve(db);
+    };
+    request.onupgradeneeded = (e) => {
+      const database = e.target.result;
+      
+      // Pending operations (offline add/delete)
+      if (!database.objectStoreNames.contains('pending')) {
+        database.createObjectStore('pending', { keyPath: 'id', autoIncrement: true });
+      }
+      
+      // Local cache of expenses
+      if (!database.objectStoreNames.contains('expenses')) {
+        const store = database.createObjectStore('expenses', { keyPath: 'id' });
+        store.createIndex('user_id', 'user_id', { unique: false });
+      }
+      
+      // Local cache of transactions
+      if (!database.objectStoreNames.contains('transactions')) {
+        const store = database.createObjectStore('transactions', { keyPath: 'id' });
+        store.createIndex('user_id', 'user_id', { unique: false });
+      }
+    };
+  });
+}
+
+// Generic helpers
+function idbAdd(storeName, data) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    const req = store.add(data);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function idbPut(storeName, data) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    const req = store.put(data);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function idbGetAll(storeName) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readonly');
+    const store = tx.objectStore(storeName);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function idbDelete(storeName, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    const req = store.delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function idbClear(storeName) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    const req = store.clear();
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/* ---------- Pending Queue (Offline actions) ---------- */
+async function addToPending(action) {
+  // action = { type: 'add_expense' | 'delete_expense' | 'add_transaction' | 'delete_transaction', data: {...} }
+  action.createdAt = Date.now();
+  await idbAdd('pending', action);
+}
+
+async function getPendingActions() {
+  return await idbGetAll('pending');
+}
+
+async function removePending(id) {
+  await idbDelete('pending', id);
+}
+
+/* ---------- Online / Offline Detection ---------- */
+window.addEventListener('online', async () => {
+  isOnline = true;
+  showBottomMessage("Internet connected. Syncing data...", "success");
+  await syncPendingData();
+});
+
+window.addEventListener('offline', () => {
+  isOnline = false;
+  showBottomMessage("You are offline. Data will be saved locally.", "error");
+});
+
+/* ---------- Main Sync Function ---------- */
+async function syncPendingData() {
+  if (!isOnline || !db) return;
+
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const pending = await getPendingActions();
+  if (pending.length === 0) return;
+
+  showBottomMessage(`Syncing ${pending.length} offline changes...`, "success");
+
+  for (const action of pending) {
+    try {
+      if (action.type === 'add_expense') {
+        const { error } = await supabaseClient.from('expenses').insert({
+          ...action.data,
+          user_id: user.id
+        });
+        if (error) throw error;
+      }
+      else if (action.type === 'update_expense') {
+        const { id, ...updateData } = action.data;
+        const { error } = await supabaseClient.from('expenses')
+          .update(updateData)
+          .eq('id', id)
+          .eq('user_id', user.id);
+        if (error) throw error;
+      }
+      else if (action.type === 'delete_expense') {
+        const { error } = await supabaseClient.from('expenses')
+          .delete()
+          .eq('id', action.data.id)
+          .eq('user_id', user.id);
+        if (error) throw error;
+      }
+      else if (action.type === 'add_transaction') {
+        const { error } = await supabaseClient.from('transactions').insert({
+          ...action.data,
+          user_id: user.id
+        });
+        if (error) throw error;
+      }
+      else if (action.type === 'update_transaction') {
+        const { id, ...updateData } = action.data;
+        const { error } = await supabaseClient.from('transactions')
+          .update(updateData)
+          .eq('id', id)
+          .eq('user_id', user.id);
+        if (error) throw error;
+      }
+      else if (action.type === 'delete_transaction') {
+        const { error } = await supabaseClient.from('transactions')
+          .delete()
+          .eq('id', action.data.id)
+          .eq('user_id', user.id);
+        if (error) throw error;
+      }
+
+      // Success → IndexedDBમાંથી કાઢી નાખો
+      await removePending(action.id);
+
+    } catch (err) {
+      console.error("Sync failed for action:", action, err);
+    }
+  }
+
+  // Sync પછી latest data લાવો
+  await loadExpenses();
+  await loadTransactions();
+  showBottomMessage("All offline data synced successfully!", "success");
 }
