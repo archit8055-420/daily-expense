@@ -134,6 +134,16 @@
         <div class="select-pill"><select id="expMonth" onchange="renderExpenses()"></select></div>
         <div class="select-pill"><select id="expYear" onchange="renderExpenses()"></select></div>
       </div>
+      <div class="top-row" style="margin-top:10px; margin-bottom:8px; border-bottom:none; padding-bottom:0;">
+        <div class="pill" style="background:#0f766e; color:white; font-size:14px;">Search</div>
+        <input type="text" id="expSearch" class="teal-pill" 
+              placeholder="Search Your Record" 
+              oninput="renderExpenses()" 
+              style="flex:2; text-align:left; padding-left:14px;">
+        <button type="button" class="done-btn" style="background:#64748b; padding:10px 16px;" 
+                onclick="document.getElementById('expSearch').value=''; renderExpenses();">Clear</button>
+      </div>
+
       <div class="section-label-wrap"><span class="section-label">Add Expense</span></div>
       <form class="input-row" id="expForm" onsubmit="event.preventDefault(); addOrUpdateExpense();">
         <input type="text" id="expName" oninput="capitalizeFirst(this)" class="teal-pill" placeholder="Expense Name" required autocomplete="off">
