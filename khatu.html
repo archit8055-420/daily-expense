@@ -20,7 +20,22 @@
 
 
 <body>
-
+  <!-- OFFLINE SCREEN -->
+  <div id="offlineScreen" class="screen auth-screen">
+    <div class="auth-panel" style="text-align:center; max-width:380px;">
+      <div style="font-size:70px; margin-bottom:15px;">📡</div>
+      <div class="auth-title" style="color:#dc2626; font-size:26px; margin-bottom:12px;">
+        No Internet Connection
+      </div>
+      <div style="font-size:16px; color:#334155; line-height:1.6; margin-bottom:25px; font-weight:600;">
+        Please connect your device to the internet<br>
+        and try again.
+      </div>
+      <button class="auth-btn" onclick="checkInternetAndReload()" style="background:#0f766e;">
+        Try Again
+      </button>
+    </div>
+  </div>
 <div class="app-frame">
 
   <!-- LOGIN SCREEN -->
