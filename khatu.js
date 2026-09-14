@@ -94,7 +94,6 @@ async function getCurrentUser() {
   currentUserId = user ? user.id : null; return user;
 }
 async function checkAuth() {
-  // પહેલા internet check કરો
   if (!navigator.onLine) {
     showOfflineScreen();
     return;
@@ -105,7 +104,17 @@ async function checkAuth() {
     await checkRecoverySession();
     return;
   }
-  showScreen('login');
+
+  // SESSION CHECK - AA KHAS CHE
+  const user = await getCurrentUser();
+  if (user) {
+    updateUsernameDisplay(user);
+    showScreen('home');
+    await loadExpenses();
+    await loadTransactions();
+  } else {
+    showScreen('login');
+  }
 }
 
 /* ================= GENERIC DATA ================= */
