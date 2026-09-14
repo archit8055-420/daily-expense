@@ -3,19 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
+
 
 <title>Daily Expense & Money Transaction</title>
+
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f172a">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<!-- AUTO FRESH - junu walu hatavi didhu -->
-<script>
-  document.write('<link rel="stylesheet" href="khatu.css?v=' + Date.now() + '">');
-</script>
+<link rel="stylesheet" href="khatu.css">
 </head>
 
 
@@ -214,28 +210,21 @@
 </div>
 
 <!-- ========== OFFLINE SCREEN (app-frameની બહાર) ========== -->
-<div id="offlineScreen" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:999999; background: linear-gradient(180deg, #87ceeb 0%, #4a5568 25%, #311847 50%, #e65100 80%, #ff8f00 100%);">
-  <div style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; padding:20px;">
-    <div style="background:rgba(255,255,255,0.95); border:3px solid #f1a9a0; border-radius:30px; padding:40px 30px; text-align:center; max-width:380px; width:100%; box-shadow:0 15px 35px rgba(0,0,0,0.3);">
-      <div style="font-size:75px; margin-bottom:18px;">📡</div>
-      <div style="font-size:26px; font-weight:800; color:#dc2626; margin-bottom:14px;">
-        No Internet Connection
-      </div>
-      <div style="font-size:16px; color:#334155; line-height:1.6; margin-bottom:28px; font-weight:600;">
-        Please connect your device to the internet<br>
-        and try again.
-      </div>
-      <button onclick="checkInternetAndReload()" style="width:100%; padding:14px; background:#0f766e; color:white; border:2px solid #333; border-radius:30px; font-size:18px; font-weight:bold; cursor:pointer; box-shadow:3px 5px 0 #222;">
-        Try Again
-      </button>
+<!-- ========== OFFLINE SCREEN (app-frame ni BAHAR rakho) ========== -->
+<div id="offlineScreen">
+  <div class="offline-box">
+    <div class="offline-icon">📡</div>
+    <div class="offline-title">No Internet Connection</div>
+    <div class="offline-text">
+      Please connect your device to the internet<br>
+      and try again.
     </div>
+    <button class="offline-btn" onclick="checkInternetAndReload()">Try Again</button>
   </div>
 </div>
 
 <div id="bottomMsgBar" class="bottom-msg-bar"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>document.write('<script src="khatu.js?v=' + Date.now() + '"><\/script>');</script>
-
+<script src="khatu.js?v=4.7"></script>
 </body>
 </html>
