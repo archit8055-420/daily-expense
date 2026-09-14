@@ -820,10 +820,18 @@ if ('serviceWorker' in navigator) {
 
 /* ================= OFFLINE PAGE ================= */
 function showOfflineScreen() {
-  // બધા screens છુપાવો
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  // બધા screensને જબરદસ્તી છુપાવો
+  document.querySelectorAll('.screen').forEach(screen => {
+    screen.classList.remove('active');
+    screen.style.display = 'none';          // extra force
+  });
+
   // Offline screen બતાવો
-  document.getElementById('offlineScreen')?.classList.add('active');
+  const offline = document.getElementById('offlineScreen');
+  if (offline) {
+    offline.classList.add('active');
+    offline.style.display = 'flex';       // force show
+  }
 }
 
 function checkInternetAndReload() {
