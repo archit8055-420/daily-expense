@@ -1,6 +1,8 @@
-const SUPABASE_URL = "https://fdddjqakdobjqgimnsdv.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkZGRqcWFrZG9ianFnaW1uc2R2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MDYzNDgsImV4cCI6MjEwNDM4MjM0OH0.UXtoDhglVxSTW65lS64uT37YkfHnVHPEyZak_3Ir39M";
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+var SUPABASE_URL = "https://fdddjqakdobjqgimnsdv.supabase.co";
+var SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkZGRqcWFrZG9ianFnaW1uc2R2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MDYzNDgsImV4cCI6MjEwNDM4MjM0OH0.UXtoDhglVxSTW65lS64uT37YkfHnVHPEyZak_3Ir39M";
+var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 
 var expenses = [];
 var transactions = [];
