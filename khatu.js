@@ -200,7 +200,7 @@ function renderTransactions() {
   const wrap = document.getElementById('transactionTableWrap');
   if (filtered.length === 0) wrap.innerHTML = '<div class="empty-note">No transactions recorded for this month.</div>';
   else {
-    wrap.innerHTML = `<table class="entries"><thead><tr><th class="col-date">Tarikh</th><th class="col-txn-tofrom">Payer</th><th class="col-txn-tofrom">Receiver</th><th class="col-txn-amt">Paisa</th><th class="col-date">Received (✓)</th><th class="col-date">Chukavya Tarikh</th><th class="col-date">Ketla Samay Pachhi</th><th class="col-action">Action</th></tr></thead><tbody>
+    wrap.innerHTML = `<table class="entries"><thead><tr><th class="col-date">Tarikh</th><th class="col-txn-tofrom">Payer</th><th class="col-txn-tofrom">Receiver</th><th class="col-txn-amt">Paisa</th><th class="col-date">Repay (✓)</th><th class="col-date">Repay Date</th><th class="col-date">Payment Gap</th><th class="col-action">Action</th></tr></thead><tbody>
     ${filtered.map(t => `<tr><td class="col-date">${formatDate(t.date_iso)}</td><td class="col-txn-tofrom">${escapeHtml(t.payer)}</td><td class="col-txn-tofrom">${escapeHtml(t.receiver)}</td><td class="col-txn-amt">₹${Number(t.amount).toFixed(2)}</td><td class="col-date"><input type="checkbox" class="custom-checkbox" ${t.is_received? 'checked' : ''} onchange="toggleReceived('${jsAttr(t.id)}', this.checked)"></td><td class="col-date">${t.received_date_iso? formatDate(t.received_date_iso) : '-'}</td><td class="col-date">${calculateDaysDiff(t.date_iso, t.received_date_iso)}</td><td class="col-action"><div class="action-btns"><button class="edit-btn" onclick="editTransaction('${jsAttr(t.id)}')">Edit</button><button class="del-btn" onclick="deleteTransaction('${jsAttr(t.id)}')">Delete</button></div></td></tr>`).join('')}
     </tbody></table>`;
   }
@@ -228,13 +228,95 @@ async function confirmDeleteAccount() {
 
 /* ================= PDF ================= */
 function downloadExpensePDF() {
-  const m = parseInt(document.getElementById('expMonth').value, 10), y = parseInt(document.getElementById('expYear').value, 10);
-  const filtered = expenses.filter(e => { const p = parseISODate(e.date_iso); return p && p.month === m && p.year === y; });
-  const { jsPDF } = window.jspdf; const doc = new jsPDF();
-  doc.setFontSize(16); doc.text(`Daily Expense Report - ${monthNames[m]} ${y}`, 14, 18);
-  let yPos = 30; doc.setFontSize(11); doc.text('Date', 14, yPos); doc.text('Name', 60, yPos); doc.text('Amount (Rs)', 140, yPos); yPos += 6; doc.line(14, yPos, 196, yPos); yPos += 8;
-  let total = 0; filtered.forEach(e => { if (yPos > 280) { doc.addPage(); yPos = 20; } doc.text(formatDate(e.date_iso), 14, yPos); doc.text(String(e.name), 60, yPos); doc.text(Number(e.amount).toFixed(2), 140, yPos); total += Number(e.amount); yPos += 8; });
-  doc.setFontSize(13); doc.text(`Total Expense: Rs ${total.toFixed(2)}`, 14, yPos + 6); doc.save(`Daily_Expense_${monthNames[m]}_${y}.pdf`);
+  const m = parseInt(document.getElementById('expMonth').value, 10);
+  const y = parseInt(document.getElementById('expYear').value, 10);
+  const search = (document.getElementById('expSearch')?.value || '').trim().toLowerCase();
+
+  let filtered = expenses.filter(e => {
+    const p = parseISODate(e.date_iso);
+    return p && p.month === m && p.year === y;
+  });
+
+  if (search) {
+    filtered = filtered.filter(e => (e.name || '').toLowerCase().includes(search));
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const title = search 
+    ? `Expense Report - ${search.toUpperCase()} - ${monthNames[m]} ${y}`
+    : `Daily Expense Report - ${monthNames[m]} ${y}`;
+
+  doc.setFontSize(16);
+  doc.text(title, 14, 18);
+
+  let yPos = 30;
+  doc.setFontSize(11);
+  doc.text('Date', 14, yPos);
+  doc.text('Name', 50, yPos);
+  doc.text('Amount (Rs)', 150, yPos);
+  yPos += 6;
+  doc.line(14, yPos, 196, yPos);
+  yPos += 8;
+
+  let totalAmount = 0;
+  let totalQty = 0;
+  let mainUnit = '';
+  let isCement = false, isPetrol = false, isVeg = false;
+
+  filtered.forEach(e => {
+    if (yPos > 270) { doc.addPage(); yPos = 20; }
+
+    const parsed = parseExpenseName(e.name);
+    const displayName = parsed.qty && parsed.unit
+      ? `${parsed.cleanName} ${parsed.qty} ${parsed.unit}`
+      : e.name;
+
+    doc.text(formatDate(e.date_iso), 14, yPos);
+    doc.text(String(displayName).substring(0, 45), 50, yPos);
+    doc.text(Number(e.amount).toFixed(2), 150, yPos);
+
+    totalAmount += Number(e.amount) || 0;
+    if (parsed.qty) {
+      totalQty += parsed.qty;
+      if (!mainUnit) mainUnit = parsed.unit;
+    }
+    if (/cement/i.test(e.name)) isCement = true;
+    if (/petrol|diesel/i.test(e.name)) isPetrol = true;
+    if (/vegetable|veg|fruit|sabzi/i.test(e.name)) isVeg = true;
+
+    yPos += 8;
+  });
+
+  yPos += 6;
+  doc.setFontSize(13);
+  doc.setFont(undefined, 'bold');
+
+  if (totalQty > 0 && mainUnit) {
+    if (isCement) {
+      doc.text(`Total Cement Bags : ${totalQty}`, 14, yPos);
+      yPos += 8;
+      doc.text(`Total Amount : Rs ${totalAmount.toFixed(2)}`, 14, yPos);
+    } else if (isPetrol) {
+      doc.text(`Total Petrol : ${totalQty} Liter`, 14, yPos);
+      yPos += 8;
+      doc.text(`Total Amount : Rs ${totalAmount.toFixed(2)}`, 14, yPos);
+    } else if (isVeg) {
+      doc.text(`Total Quantity : ${totalQty} Kg`, 14, yPos);
+      yPos += 8;
+      doc.text(`Total Amount : Rs ${totalAmount.toFixed(2)}`, 14, yPos);
+    } else {
+      doc.text(`Total Qty : ${totalQty} ${mainUnit}  |  Amount : Rs ${totalAmount.toFixed(2)}`, 14, yPos);
+    }
+  } else {
+    doc.text(`Total Expense : Rs ${totalAmount.toFixed(2)}`, 14, yPos);
+  }
+
+  const fileName = search 
+    ? `Expense_${search}_${monthNames[m]}_${y}.pdf`
+    : `Daily_Expense_${monthNames[m]}_${y}.pdf`;
+
+  doc.save(fileName);
 }
 function downloadTransactionPDF() {
   const m = parseInt(document.getElementById('txnMonth').value, 10), y = parseInt(document.getElementById('txnYear').value, 10);
@@ -492,4 +574,189 @@ if ('serviceWorker' in navigator) {
       .then(() => console.log('PWA registered'))
       .catch(err => console.error(err));
   });
+}
+
+/* ================= SMART PARSE ================= */
+/* ================= SMART PARSE (FIXED) ================= */
+/* ================= SMART PARSE (FINAL FIXED) ================= */
+function parseExpenseName(name) {
+  if (!name) return { displayName: name || '', qty: 0, unit: '', plate: '' };
+
+  let text = name.trim();
+  let plate = '';
+  let qty = 0;
+  let unit = '';
+
+  // 1. Plate number કાઢો (શરૂઆતના 4 અંક)
+  const plateMatch = text.match(/^(\d{4})\s+/);
+  if (plateMatch) {
+    plate = plateMatch[1];
+    text = text.replace(plateMatch[0], '').trim();
+  }
+
+  const lower = text.toLowerCase();
+
+  // 2. Quantity + Unit શોધો
+  // Bags
+  let m = lower.match(/(\d+(?:\.\d+)?)\s*(bag|bags|bage)/i) || 
+          lower.match(/(bag|bags|bage)\s*(\d+(?:\.\d+)?)/i);
+  if (m) {
+    qty = parseFloat(m[1] || m[2]);
+    unit = 'Bags';
+  }
+
+  // Liter
+  if (!qty) {
+    m = lower.match(/(\d+(?:\.\d+)?)\s*(liter|litre|ltr|ltrs|liters)/i) || 
+        lower.match(/(liter|litre|ltr|ltrs|liters)\s*(\d+(?:\.\d+)?)/i);
+    if (m) {
+      qty = parseFloat(m[1] || m[2]);
+      unit = 'Liter';
+    }
+  }
+
+  // Kg
+  if (!qty) {
+    m = lower.match(/(\d+(?:\.\d+)?)\s*(kg|kgs|kilo|kilos)/i) || 
+        lower.match(/(kg|kgs|kilo|kilos)\s*(\d+(?:\.\d+)?)/i);
+    if (m) {
+      qty = parseFloat(m[1] || m[2]);
+      unit = 'Kg';
+    }
+  }
+
+  // ફક્ત નંબર હોય તો (છેલ્લે અથવા વચ્ચે)
+  if (!qty) {
+    m = lower.match(/(\d+(?:\.\d+)?)/);
+    if (m) qty = parseFloat(m[1]);
+  }
+
+  // 3. Clean Name બનાવો (બધા નંબર અને unit હટાવીને)
+  let cleanName = text
+    .replace(/(\d+(?:\.\d+)?)/g, '')                          // બધા નંબર હટાવો
+    .replace(/(bag|bags|bage|liter|litre|ltr|ltrs|liters|kg|kgs|kilo|kilos)/gi, '')  // unit હટાવો
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Unit ન હોય તો keyword પરથી નક્કી કરો
+  if (qty && !unit) {
+    if (/cement/i.test(cleanName) || /cement/i.test(name)) unit = 'Bags';
+    else if (/petrol|diesel|fuel/i.test(cleanName) || /petrol|diesel|fuel/i.test(name)) unit = 'Liter';
+    else if (/vegetable|veg|fruit|sabzi|bhaji|tomato|onion|potato|alu|pyaj/i.test(cleanName)) unit = 'Kg';
+    else unit = 'Qty';
+  }
+
+  // 4. Final Display Name (સાફ)
+  let displayName = '';
+
+  if (plate) displayName += plate + ' ';
+
+  if (cleanName) {
+    displayName += capitalizeFirstLetter(cleanName);
+  } else {
+    displayName += 'Item';
+  }
+
+  if (qty && unit) {
+    displayName += ' ' + qty + ' ' + unit;
+  }
+
+  return {
+    displayName: displayName.trim(),
+    qty: qty,
+    unit: unit,
+    plate: plate
+  };
+}
+
+/* ================= RENDER EXPENSES (UPDATED) ================= */
+/* ================= RENDER EXPENSES (FIXED) ================= */
+function renderExpenses() {
+  const m = parseInt(document.getElementById('expMonth').value, 10);
+  const y = parseInt(document.getElementById('expYear').value, 10);
+  const searchInput = document.getElementById('expSearch');
+  const search = (searchInput ? searchInput.value : '').trim().toLowerCase();
+
+  let filtered = expenses.filter(e => {
+    const p = parseISODate(e.date_iso);
+    return p && p.month === m && p.year === y;
+  });
+
+  // Search filter
+  if (search) {
+    filtered = filtered.filter(e => (e.name || '').toLowerCase().includes(search));
+  }
+
+  const wrap = document.getElementById('expenseTableWrap');
+  const totalBox = document.querySelector('#expenseScreen .total-box');
+
+  if (filtered.length === 0) {
+    wrap.innerHTML = `<div class="empty-note">${search ? 'No matching records found.' : 'No expense recorded for this month.'}</div>`;
+    if (totalBox) totalBox.innerHTML = `Total Expense : ₹0.00`;
+    return;
+  }
+
+  let totalAmount = 0;
+  let totalQty = 0;
+  let mainUnit = '';
+  let isCement = false, isPetrol = false, isVeg = false;
+
+  const rows = filtered.map(e => {
+    const parsed = parseExpenseName(e.name);
+    totalAmount += Number(e.amount) || 0;
+
+    if (parsed.qty > 0) {
+      totalQty += parsed.qty;
+      if (!mainUnit) mainUnit = parsed.unit;
+    }
+
+    if (/cement/i.test(e.name)) isCement = true;
+    if (/petrol|diesel/i.test(e.name)) isPetrol = true;
+    if (/vegetable|veg|fruit|sabzi|bhaji/i.test(e.name)) isVeg = true;
+
+    return `<tr>
+      <td class="col-date">${formatDate(e.date_iso)}</td>
+      <td class="col-name">${escapeHtml(parsed.displayName || e.name)}</td>
+      <td class="col-amount">₹${Number(e.amount).toFixed(2)}</td>
+      <td class="col-action">
+        <div class="action-btns">
+          <button class="edit-btn" onclick="editExpense('${jsAttr(e.id)}')">Edit</button>
+          <button class="del-btn" onclick="deleteExpense('${jsAttr(e.id)}')">Delete</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `<table class="entries">
+    <thead>
+      <tr>
+        <th class="col-date">Date</th>
+        <th class="col-name">Name</th>
+        <th class="col-amount">Amount (₹)</th>
+        <th class="col-action">Action</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+
+  // Smart Total
+  let totalHTML = `Total Expense : ₹${totalAmount.toFixed(2)}`;
+
+  if (totalQty > 0 && mainUnit) {
+    if (isCement) {
+      totalHTML = `Total Cement : <b>${totalQty} Bags</b> | ₹${totalAmount.toFixed(2)}`;
+    } else if (isPetrol) {
+      totalHTML = `Total Petrol : <b>${totalQty} Liter</b> | ₹${totalAmount.toFixed(2)}`;
+    } else if (isVeg) {
+      totalHTML = `Total : <b>${totalQty} Kg</b> | ₹${totalAmount.toFixed(2)}`;
+    } else {
+      totalHTML = `Total Qty : <b>${totalQty} ${mainUnit}</b> | ₹${totalAmount.toFixed(2)}`;
+    }
+  }
+
+  if (totalBox) {
+    totalBox.innerHTML = totalHTML;
+  }
+
+  scrollTableToBottom('expenseTableWrap');
 }
