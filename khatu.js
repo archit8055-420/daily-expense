@@ -307,6 +307,22 @@ function showScreen(name) {
   screens.forEach(id => document.getElementById(id)?.classList.remove('active'));
   document.getElementById(name + 'Screen')?.classList.add('active');
   document.querySelectorAll('.user-menu').forEach(menu => menu.classList.remove('active'));
+  // When entering grouping screen, by default set to Others (as requested) and Select Name default
+  if(name === 'group'){
+    let grpSel = document.getElementById('grpGroup');
+    if(grpSel){
+      // Default to Others if available, else first group
+      let groups = getAllGroupsFiltered();
+      if(groups.includes('Others')) grpSel.value = 'Others';
+      else if(groups.length>0) grpSel.value = groups[0];
+    }
+    let personFilter = document.getElementById('grpPersonFilter');
+    if(personFilter) personFilter.value = 'Select Name';
+    // Reset expanded
+    expandedGroups = {};
+    // Will render with today's data
+    renderGroups();
+  }
 }
 function toggleUserMenu(menuId) {
   const menu = document.getElementById(menuId);
@@ -329,8 +345,9 @@ async function openDashboard(fromScreen) {
   await loadDashboard();
 }
 function goBack() {
-  if (profileDashboardBackScreen === 'expense' || profileDashboardBackScreen === 'transaction') {
+  if (profileDashboardBackScreen === 'expense' || profileDashboardBackScreen === 'transaction' || profileDashboardBackScreen === 'group') {
     showScreen(profileDashboardBackScreen);
+    if(profileDashboardBackScreen === 'group') loadGroups();
     profileDashboardBackScreen = null;
   } else { showScreen('home'); }
 }
@@ -552,22 +569,14 @@ function handleExpenseCategoryChange(){
 }
 
 function renderExpenses() {
-  const monthSel = document.getElementById('expMonth');
-  const yearSel = document.getElementById('expYear');
-  if(!monthSel || !yearSel) return;
-  const mVal = monthSel.value;
-  const yVal = yearSel.value;
-  // Expense screen ma category filter HATAVI DIDHO - badha category no data show karvu
+  // Main screen ma selected date no data dekhadvo - default aaj, date badlo to badleli date no data
+  const selectedDate = document.getElementById('expDate')?.value || todayISO();
   let filtered = expenses.filter(e => {
-    const p = parseISODate(e.date_iso);
-    if(!p) return false;
-    const mMatch = mVal === 'all' || p.month === parseInt(mVal);
-    const yMatch = yVal === 'all' || p.year === parseInt(yVal);
-    return mMatch && yMatch;
+    return e.date_iso === selectedDate;
   });
   const wrap = document.getElementById('expenseTableWrap');
   if (filtered.length === 0) {
-    wrap.innerHTML = `<div class="empty-note">No expense for this month/year.</div>`;
+    wrap.innerHTML = `<div class="empty-note">No expense for ${formatDate(selectedDate)}. Add new or check Filter.</div>`;
   } else {
     const rows = filtered.map(e => {
       const parsed = parseExpenseName(e.name);
@@ -581,22 +590,19 @@ function renderExpenses() {
     wrap.innerHTML = `<table class="entries"><thead><tr><th style="text-align:center;">Date</th><th style="text-align:center;">Name [Category]</th><th style="text-align:center;">Amount</th><th style="text-align:center;">Action</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
   document.getElementById('expTotal').textContent = filtered.reduce((s, e) => s + Number(e.amount || 0), 0).toFixed(2);
+  scrollTableToBottom('expenseTableWrap');
 }
 
 // ---------- TRANSACTION ----------
 async function loadTransactions() { transactions = await loadTable('transactions'); renderTransactions(); }
 function renderTransactions() {
-  const mVal = document.getElementById('txnMonth')?.value || 'all';
-  const yVal = document.getElementById('txnYear')?.value || 'all';
+  // Main screen ma selected date no data
+  const selectedDate = document.getElementById('txnDate')?.value || todayISO();
   const filtered = transactions.filter(t => { 
-    const p = parseISODate(t.date_iso); 
-    if(!p) return false;
-    const mMatch = mVal === 'all' || p.month === parseInt(mVal);
-    const yMatch = yVal === 'all' || p.year === parseInt(yVal);
-    return mMatch && yMatch;
+    return t.date_iso === selectedDate;
   });
   const wrap = document.getElementById('transactionTableWrap');
-  if (filtered.length === 0) { wrap.innerHTML = '<div class="empty-note">No transactions for this filter.</div>'; }
+  if (filtered.length === 0) { wrap.innerHTML = `<div class="empty-note">No transactions for ${formatDate(selectedDate)}. Add new or check Filter.</div>`; }
   else {
     wrap.innerHTML = `<table class="entries"><thead><tr><th class="col-date">Tarikh</th><th class="col-txn-tofrom">Payer</th><th class="col-txn-tofrom">Receiver</th><th class="col-txn-amt">Paisa</th><th class="col-date">Repay (✓)</th><th class="col-date">Repay Date</th><th class="col-date">Gap</th><th class="col-action">Action</th></tr></thead><tbody>${filtered.map(t => `<tr><td class="col-date">${formatDate(t.date_iso)}</td><td class="col-txn-tofrom">${escapeHtml(t.payer)}</td><td class="col-txn-tofrom">${escapeHtml(t.receiver)}</td><td class="col-txn-amt">₹${Number(t.amount).toFixed(2)}</td><td class="col-date"><input type="checkbox" class="custom-checkbox" ${t.is_received? 'checked' : ''} onchange="toggleReceived('${jsAttr(t.id)}', this.checked)"></td><td class="col-date">${t.received_date_iso? formatDate(t.received_date_iso) : '-'}</td><td class="col-date">${calculateDaysDiff(t.date_iso, t.received_date_iso)}</td><td class="col-action"><div class="action-btns"><button class="edit-btn" onclick="editTransaction('${jsAttr(t.id)}')">Edit</button><button class="del-btn" onclick="deleteTransaction('${jsAttr(t.id)}')">Delete</button></div></td></tr>`).join('')}</tbody></table>`;
   }
@@ -670,9 +676,14 @@ function handleGroupChange(){
   let grp = sel.value;
   let personInput = document.getElementById('grpPerson');
   let amtInput = document.getElementById('grpAmount');
-  if(personInput) personInput.placeholder = "Enter Name (e.g. Kanjibhai)";
-  if(amtInput) amtInput.placeholder = grp + " Amount (e.g. 5000)";
+  if(personInput) personInput.placeholder = "Enter Name";
+  if(amtInput) amtInput.placeholder = "Amount";
   document.getElementById('grpGroupName').textContent = grp;
+  // Reset person filter when group changes
+  let pf = document.getElementById('grpPersonFilter');
+  if(pf) pf.value = "Select Name";
+  // Clear expanded
+  expandedGroups = {};
   renderGroups();
 }
 function toggleGroupView(personKey){
@@ -684,8 +695,35 @@ function renderGroups(){
   if(!wrap) return;
   const grpFilter = document.getElementById('grpGroup')?.value || "Upad";
   const search = (document.getElementById('grpSearch')?.value || "").trim().toLowerCase();
+  const personFilter = document.getElementById('grpPersonFilter')?.value || "Select Name";
+  // First get all persons for current group to fill Select Name dropdown (today's data pan but dropdown ma badha dekhadvo for selection)
+  let allForGroup = groupRecords.filter(g=> g.group_name === grpFilter);
+  let uniquePersons = [...new Set(allForGroup.map(g=>g.person_name))].sort();
+  // Fill dropdown if needed
+  let personSel = document.getElementById('grpPersonFilter');
+  if(personSel){
+    let currentVal = personSel.value;
+    let htmlOptions = `<option value="Select Name">Select Name</option>`;
+    uniquePersons.forEach(p=>{ htmlOptions += `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`; });
+    // Only rebuild if changed to avoid losing focus
+    if(personSel.options.length !== uniquePersons.length+1 || personSel.innerHTML !== htmlOptions){
+      personSel.innerHTML = htmlOptions;
+      if(currentVal && [...personSel.options].some(o=>o.value===currentVal)) personSel.value = currentVal;
+    }
+    // Auto-fill Enter Name when Select Name chosen
+    if(personSel.value !== "Select Name" && personSel.value !== ""){
+      let enterNameInput = document.getElementById('grpPerson');
+      if(enterNameInput && !editGroupId){
+        enterNameInput.value = personSel.value;
+      }
+    }
+  }
+
+  const selectedDate = document.getElementById('grpDate')?.value || todayISO();
   let filtered = groupRecords.filter(g=>{
     if(grpFilter !== NEW_GROUP_LABEL && g.group_name !== grpFilter) return false;
+    if(g.date_iso !== selectedDate) return false; // Selected date no data - aaj default, badlo to badleli date no data
+    if(personFilter !== "Select Name" && personFilter !== "" && g.person_name !== personFilter) return false;
     if(search && !(g.person_name||'').toLowerCase().includes(search)) return false;
     return true;
   });
@@ -698,7 +736,7 @@ function renderGroups(){
   });
   let personKeys = Object.keys(grouped).sort();
   if(personKeys.length===0){
-    wrap.innerHTML = `<div class="empty-note">No ${grpFilter} records. Search: ${search||'all'}</div>`;
+    wrap.innerHTML = `<div class="empty-note">No ${grpFilter} records. ${personFilter!=='Select Name'?personFilter:search||'all'}</div>`;
     document.getElementById('grpTotal').textContent = "0.00";
     return;
   }
@@ -744,6 +782,7 @@ function renderGroups(){
   wrap.innerHTML = html;
   document.getElementById('grpTotal').textContent = total.toFixed(2);
   document.getElementById('grpGroupName').textContent = grpFilter;
+  scrollTableToBottom('groupTableWrap');
 }
 function editGroupFirst(personKey){
   // Edit first record of person as main
@@ -761,15 +800,18 @@ function deleteGroupPerson(personKey){
     performDeleteGroup(r.id);
   });
 }
+var isGroupSaving = false;
 async function addOrUpdateGroup(){
-  const user = await getCurrentUser(); if(!user) return showBottomMessage("Login nathi","error");
+  if(isGroupSaving) return;
+  isGroupSaving = true;
+  const user = await getCurrentUser(); if(!user){ isGroupSaving=false; return showBottomMessage("Login nathi","error"); }
   const person = capitalizeFirstLetter(document.getElementById('grpPerson').value.trim());
   const amount = parseFloat(document.getElementById('grpAmount').value);
   const date = document.getElementById('grpDate').value || todayISO();
   let grpSel = document.getElementById('grpGroup')?.value || "Upad";
-  if(grpSel === NEW_GROUP_LABEL) return handleGroupChange();
-  if(!person) return showBottomMessage("Person Name lakho","error");
-  if(!amount || amount<=0) return showBottomMessage("Amount lakho","error");
+  if(grpSel === NEW_GROUP_LABEL){ isGroupSaving=false; return handleGroupChange(); }
+  if(!person){ isGroupSaving=false; return showBottomMessage("Person Name lakho","error"); }
+  if(!amount || amount<=0){ isGroupSaving=false; return showBottomMessage("Amount lakho","error"); }
   const btn = document.getElementById('grpDoneBtn'); btn.disabled=true; btn.textContent='Saving...';
   try{
     if(editGroupId !== null){
@@ -811,7 +853,7 @@ async function addOrUpdateGroup(){
     // Focus redirect to Enter Name
     setTimeout(()=>{ document.getElementById('grpPerson')?.focus(); }, 200);
   }catch(err){ showBottomMessage(err.message,"error"); }
-  finally{ btn.disabled=false; btn.textContent='Done'; }
+  finally{ btn.disabled=false; btn.textContent='Done'; isGroupSaving=false; }
 }
 function editGroup(id){
   const rec = groupRecords.find(r=>String(r.id)===String(id)); if(!rec) return;
@@ -952,6 +994,19 @@ async function confirmDeleteGroup(){
 // ---------- FILTER ----------
 let filterType = 'expense';
 let repayFilter = 'all';
+function updateFilterDateDisplay(){
+  const val = document.getElementById('filterDate')?.value;
+  const txt = document.getElementById('filterDateText');
+  if(!txt) return;
+  if(val) txt.textContent = `📅 ${formatDate(val)}`;
+  else txt.textContent = `📅 Select Date`;
+}
+function clearFilterDate(){
+  const inp = document.getElementById('filterDate');
+  if(inp) inp.value = '';
+  updateFilterDateDisplay();
+  renderFilterResults();
+}
 function openFilter(fromScreen) {
   profileDashboardBackScreen = fromScreen;
   document.querySelectorAll('.user-menu').forEach(menu => menu.classList.remove('active'));
@@ -966,6 +1021,10 @@ function openFilter(fromScreen) {
   fillCategorySelects();
   fillGroupSelectsForFilter();
   document.getElementById('filterSearch').value = '';
+  // Reset date filter to empty by default - shows whole month's all dates
+  const dateInp = document.getElementById('filterDate');
+  if(dateInp) { dateInp.value = ''; }
+  updateFilterDateDisplay();
   const repayRow = document.getElementById('repayFilterRow');
   const categoryPill = document.getElementById('filterCategory')?.closest('.select-pill');
   const groupPill = document.getElementById('filterGroupWrap');
@@ -1011,9 +1070,15 @@ function renderFilterResults(){
   const search = (document.getElementById('filterSearch')?.value || '').trim().toLowerCase();
   const catFilter = document.getElementById('filterCategory')?.value || "All Categories";
   const grpFilter = document.getElementById('filterGroup')?.value || "All Groups";
+  const filterDateVal = document.getElementById('filterDate')?.value || '';
   const wrap = document.getElementById('filterTableWrap');
   const totalBox = document.getElementById('filterTotalBox');
   let filtered = [];
+  // Helper for date filter: if filterDate selected, only that date, else whole month (no date filter)
+  function passesDateFilter(date_iso){
+    if(!filterDateVal) return true; // No date selected -> show whole month (all dates of that month)
+    return date_iso === filterDateVal;
+  }
   if (filterType === 'expense') {
     filtered = expenses.filter(e => {
       const p = parseISODate(e.date_iso);
@@ -1021,6 +1086,7 @@ function renderFilterResults(){
       const mMatch = monthVal === 'all' || monthVal === 'overall' || p.month === parseInt(monthVal);
       const yMatch = yearVal === 'all' || yearVal === 'overall' || p.year === parseInt(yearVal);
       if(!mMatch || !yMatch) return false;
+      if(!passesDateFilter(e.date_iso)) return false;
       if(catFilter!== "All Categories" && catFilter !== NEW_CAT_LABEL && (e.category||'Others')!== catFilter) return false;
       if(search &&!(e.name||'').toLowerCase().includes(search) &&!(e.category||'').toLowerCase().includes(search)) return false;
       return true;
@@ -1030,13 +1096,14 @@ function renderFilterResults(){
     wrap.innerHTML = `<table class="entries"><thead><tr><th class="col-date">Date</th><th class="col-name">Category</th><th class="col-name">Name</th><th class="col-amount">Amount</th></tr></thead><tbody>${rows}</tbody></table>`;
     totalBox.innerHTML = `Total (${catFilter}) : ₹${filtered.reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)}`;
   } else if(filterType === 'group'){
-    // Group filter with month/year and group select
+    // Group filter with month/year and group select + date filter
     filtered = groupRecords.filter(g=>{
       const p = parseISODate(g.date_iso);
       if(!p) return false;
       const mMatch = monthVal === 'all' || monthVal === 'overall' || p.month === parseInt(monthVal);
       const yMatch = yearVal === 'all' || yearVal === 'overall' || p.year === parseInt(yearVal);
       if(!mMatch || !yMatch) return false;
+      if(!passesDateFilter(g.date_iso)) return false;
       if(grpFilter !== "All Groups" && g.group_name !== grpFilter) return false;
       if(search && !(g.person_name||'').toLowerCase().includes(search) && !(g.group_name||'').toLowerCase().includes(search)) return false;
       return true;
@@ -1074,6 +1141,7 @@ function renderFilterResults(){
       const mMatch = monthVal === 'all' || monthVal === 'overall' || p.month === parseInt(monthVal);
       const yMatch = yearVal === 'all' || yearVal === 'overall' || p.year === parseInt(yearVal);
       if(!mMatch || !yMatch) return false;
+      if(!passesDateFilter(t.date_iso)) return false;
       if(repayFilter==='completed' &&!t.is_received) return false;
       if(repayFilter==='remaining' && t.is_received) return false;
       if(search &&!((t.payer||'').toLowerCase().includes(search) || (t.receiver||'').toLowerCase().includes(search))) return false;
@@ -1406,9 +1474,17 @@ function downloadFilterPDF(){
   const search = (document.getElementById('filterSearch')?.value || '').trim().toLowerCase();
   const catFilter = document.getElementById('filterCategory')?.value || "All Categories";
   const grpFilter = document.getElementById('filterGroup')?.value || "All Groups";
+  const filterDateVal = document.getElementById('filterDate')?.value || '';
   const monthNamesFull = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   let monthLabel = monthVal === 'all' || monthVal === 'overall' ? 'Overall' : monthNamesFull[parseInt(monthVal)] || monthVal;
   let yearLabel = yearVal === 'all' || yearVal === 'overall' ? '' : yearVal;
+  let dateLabel = "";
+  if(filterDateVal) dateLabel = `Date: ${formatDate(filterDateVal)}`;
+  else dateLabel = `${monthLabel} All Dates`;
+  function passesDateFilter(d_iso){
+    if(!filterDateVal) return true;
+    return d_iso === filterDateVal;
+  }
   let filtered = [];
   if (filterType === 'expense') {
     filtered = expenses.filter(e => {
@@ -1416,6 +1492,7 @@ function downloadFilterPDF(){
       const mMatch = monthVal === 'all' || monthVal === 'overall' || p.month === parseInt(monthVal);
       const yMatch = yearVal === 'all' || yearVal === 'overall' || p.year === parseInt(yearVal);
       if(!mMatch || !yMatch) return false;
+      if(!passesDateFilter(e.date_iso)) return false;
       if(catFilter!== "All Categories" && catFilter !== NEW_CAT_LABEL && (e.category||'Others')!== catFilter) return false;
       if(search &&!(e.name||'').toLowerCase().includes(search) &&!(e.category||'').toLowerCase().includes(search)) return false;
       return true;
@@ -1426,6 +1503,7 @@ function downloadFilterPDF(){
       const mMatch = monthVal === 'all' || monthVal === 'overall' || p.month === parseInt(monthVal);
       const yMatch = yearVal === 'all' || yearVal === 'overall' || p.year === parseInt(yearVal);
       if(!mMatch || !yMatch) return false;
+      if(!passesDateFilter(g.date_iso)) return false;
       if(grpFilter !== "All Groups" && g.group_name !== grpFilter) return false;
       if(search && !(g.person_name||'').toLowerCase().includes(search) && !(g.group_name||'').toLowerCase().includes(search)) return false;
       return true;
@@ -1436,6 +1514,7 @@ function downloadFilterPDF(){
       const mMatch = monthVal === 'all' || monthVal === 'overall' || p.month === parseInt(monthVal);
       const yMatch = yearVal === 'all' || yearVal === 'overall' || p.year === parseInt(yearVal);
       if(!mMatch || !yMatch) return false;
+      if(!passesDateFilter(t.date_iso)) return false;
       if(repayFilter === 'completed' &&!t.is_received) return false;
       if(repayFilter === 'remaining' && t.is_received) return false;
       if(search &&!((t.payer||'').toLowerCase().includes(search) || (t.receiver||'').toLowerCase().includes(search))) return false;
@@ -1455,6 +1534,8 @@ function downloadFilterPDF(){
   doc.text(displayTitle, pageWidth/2, 22, {align:"center"});
   doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.setTextColor(220, 38, 38);
   let monthYearText = `${monthLabel} ${yearLabel}`.trim(); if(monthVal === 'all' && yearVal === 'all') monthYearText = "Overall";
+  // Add date label
+  monthYearText += ` | ${dateLabel}`;
   doc.text(monthYearText, pageWidth/2, 30, {align:"center"});
   doc.setTextColor(0,0,0); doc.setFontSize(12); doc.setFont("helvetica","bold");
   const userName = document.getElementById('homeUsername')?.innerText || 'User';
@@ -1467,61 +1548,94 @@ function downloadFilterPDF(){
     let body = filtered.map((e, idx)=>[idx+1, formatDate(e.date_iso), String(e.name).substring(0,30), Number(e.amount).toFixed(2)]);
     doc.autoTable({ startY: 56, head: [['Sr No','Date','Name','Amount']], body: body, theme:'grid', styles:{halign:'center', fontSize:10, cellPadding:3, lineColor:[0,0,0], lineWidth:0.2}, headStyles:{fillColor:[15,23,42], textColor:255, fontStyle:'bold', halign:'center'}, columnStyles:{0:{cellWidth:15},1:{cellWidth:35},2:{cellWidth:80},3:{cellWidth:40}}, margin:{left:14,right:14} });
   } else if(filterType === 'group'){
-    // Grouping PDF format: Kanjibhai box, then date upad lines
-    let grouped = {};
+    // Grouping PDF: group wise -> person wise -> person total -> group total -> grand total
+    // First group by group_name
+    let groupWise = {};
     filtered.forEach(rec=>{
-      let key = rec.person_name.toLowerCase() + "|" + rec.group_name;
-      if(!grouped[key]) grouped[key] = { person: rec.person_name, group: rec.group_name, records: [] };
-      grouped[key].records.push(rec);
+      if(!groupWise[rec.group_name]) groupWise[rec.group_name] = [];
+      groupWise[rec.group_name].push(rec);
     });
-    let personKeys = Object.keys(grouped).sort();
+    let groupNames = Object.keys(groupWise).sort();
     let startY = 56;
-    personKeys.forEach((key, idx)=>{
-      let g = grouped[key];
-      g.records.sort((a,b)=> new Date(a.date_iso) - new Date(b.date_iso));
-      let personTotal = g.records.reduce((s,r)=>s+Number(r.amount||0),0);
-      // Check page overflow
-      if(startY > 240){ doc.addPage(); startY = 15; }
-      // Person header centered box
-      doc.setFontSize(14); doc.setFont("helvetica","bold"); doc.setFillColor(2,132,199);
+    let grandTotal = 0;
+    groupNames.forEach((grpName, grpIdx)=>{
+      let recs = groupWise[grpName];
+      recs.sort((a,b)=> new Date(a.date_iso) - new Date(b.date_iso));
+      let groupTotal = recs.reduce((s,r)=>s+Number(r.amount||0),0);
+      grandTotal += groupTotal;
+      // Group header
+      if(startY > 250){ doc.addPage(); startY = 15; }
+      doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.setFillColor(124,58,237);
       doc.setTextColor(255,255,255);
-      doc.rect(14, startY, pageWidth-28, 10, 'F');
-      doc.text(`${g.person}`, pageWidth/2, startY+7, {align:"center"});
-      startY += 12;
+      doc.rect(14, startY, pageWidth-28, 9, 'F');
+      doc.text(`Group: ${grpName}`, pageWidth/2, startY+6, {align:"center"});
+      startY += 11;
       doc.setTextColor(0,0,0);
-      let body = g.records.map((rec)=>[formatDate(rec.date_iso), `${rec.group_name}`, Number(rec.amount).toFixed(2)]);
-      doc.autoTable({
-        startY: startY,
-        head: [['Date','Group','Amount']],
-        body: body,
-        theme: 'grid',
-        styles:{halign:'center', fontSize:10, cellPadding:3, lineColor:[0,0,0], lineWidth:0.2},
-        headStyles:{fillColor:[15,23,42], textColor:255},
-        margin:{left:14,right:14}
+
+      // Now person wise inside this group
+      let personWise = {};
+      recs.forEach(r=>{
+        let key = r.person_name.toLowerCase();
+        if(!personWise[key]) personWise[key] = { person: r.person_name, records: [] };
+        personWise[key].records.push(r);
       });
-      startY = doc.lastAutoTable.finalY + 2;
+      let personKeys = Object.keys(personWise).sort();
+      personKeys.forEach((pKey, pIdx)=>{
+        let pObj = personWise[pKey];
+        pObj.records.sort((a,b)=> new Date(a.date_iso) - new Date(b.date_iso));
+        let personTotal = pObj.records.reduce((s,r)=>s+Number(r.amount||0),0);
+        if(startY > 240){ doc.addPage(); startY = 15; }
+        doc.setFontSize(12); doc.setFont("helvetica","bold"); doc.setFillColor(2,132,199);
+        doc.setTextColor(255,255,255);
+        doc.rect(14, startY, pageWidth-28, 8, 'F');
+        doc.text(`${pObj.person}`, pageWidth/2, startY+5.5, {align:"center"});
+        startY += 10;
+        doc.setTextColor(0,0,0);
+        let body = pObj.records.map((rec)=>[formatDate(rec.date_iso), Number(rec.amount).toFixed(2)]);
+        doc.autoTable({
+          startY: startY,
+          head: [['Date','Amount']],
+          body: body,
+          theme: 'grid',
+          styles:{halign:'center', fontSize:10, cellPadding:2, lineColor:[0,0,0], lineWidth:0.2},
+          headStyles:{fillColor:[15,23,42], textColor:255},
+          margin:{left:30,right:30}
+        });
+        startY = doc.lastAutoTable.finalY + 2;
+        doc.setFontSize(10); doc.setFont("helvetica","bold");
+        doc.text(`Total ${pObj.person} = Rs ${personTotal.toFixed(2)}`, pageWidth/2, startY+4, {align:"center"});
+        startY += 7;
+        if(pIdx < personKeys.length - 1){
+          doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.setTextColor(100,100,100);
+          doc.text(`--------------------------------------------------`, pageWidth/2, startY+2, {align:"center"});
+          startY += 6;
+          doc.setTextColor(0,0,0);
+        }
+      });
+      // Group total after all persons in this group
+      if(startY > 270){ doc.addPage(); startY = 15; }
       doc.setFontSize(11); doc.setFont("helvetica","bold");
-      doc.text(`Total ${g.person} = Rs ${personTotal.toFixed(2)}`, pageWidth/2, startY+6, {align:"center"});
-      startY += 10;
-      // ------------- separator line after each person
-      if(idx < personKeys.length - 1){
-        doc.setFontSize(10); doc.setFont("helvetica","normal"); doc.setTextColor(100,100,100);
-        doc.text(`--------------------------------------------------`, pageWidth/2, startY+4, {align:"center"});
+      doc.text(`Group Total ${grpName} = Rs ${groupTotal.toFixed(2)}`, pageWidth/2, startY+6, {align:"center"});
+      startY += 12;
+      if(grpIdx < groupNames.length - 1){
+        doc.setFontSize(10); doc.setFont("helvetica","normal"); doc.setTextColor(80,80,80);
+        doc.text(`==================================================`, pageWidth/2, startY+2, {align:"center"});
         startY += 8;
+        doc.setTextColor(0,0,0);
       }
     });
-    let grandTotal = filtered.reduce((s,i)=>s+Number(i.amount||0),0);
-    doc.setFontSize(12); doc.setFont("helvetica","bold"); doc.setTextColor(0,0,0);
-    doc.text(`Grand Total (${grpFilter}) : Rs ${grandTotal.toFixed(2)}`, 14, startY+6);
+    if(startY > 270){ doc.addPage(); startY = 15; }
+    doc.setFontSize(13); doc.setFont("helvetica","bold");
+    doc.text(`Grand Total (${dateLabel}) : Rs ${grandTotal.toFixed(2)}`, 14, startY+8);
   } else {
     let body = filtered.map((t, idx)=>[idx+1, formatDate(t.date_iso), String(t.payer).substring(0,12), String(t.receiver).substring(0,12), Number(t.amount).toFixed(2), t.is_received ? 'Yes' : 'No', t.received_date_iso ? formatDate(t.received_date_iso) : '-']);
     doc.autoTable({ startY: 56, head: [['Sr No','Date','Payer','Receiver','Amount','Repaid','Repay Date']], body: body, theme:'grid', styles:{halign:'center', fontSize:9, cellPadding:2, lineColor:[0,0,0], lineWidth:0.2}, headStyles:{fillColor:[15,23,42], textColor:255, fontSize:9}, margin:{left:10,right:10} });
   }
   if(filterType !== 'group'){
     let total = filtered.reduce((s, i) => s + Number(i.amount || 0), 0);
-    doc.setFontSize(12); doc.setFont("helvetica","bold"); doc.text(`Total: Rs ${total.toFixed(2)}`, 14, doc.lastAutoTable.finalY + 18);
+    doc.setFontSize(12); doc.setFont("helvetica","bold"); doc.text(`Total: Rs ${total.toFixed(2)} | ${dateLabel}`, 14, doc.lastAutoTable.finalY + 12);
   }
-  const fileName = filterType==='expense' ? `Filter_${catFilter}_${monthLabel}_${yearLabel}.pdf` : filterType==='group' ? `Grouping_${grpFilter}_${monthLabel}_${yearLabel}.pdf` : `Filter_Transaction_${monthLabel}_${yearLabel}.pdf`;
+  const fileName = filterType==='expense' ? `Filter_${catFilter}_${monthLabel}_${yearLabel}_${dateLabel}.pdf` : filterType==='group' ? `Grouping_${grpFilter}_${monthLabel}_${yearLabel}_${dateLabel}.pdf` : `Filter_Transaction_${monthLabel}_${yearLabel}_${dateLabel}.pdf`;
   doc.save(fileName.replace(/ /g,'_'));
 }
 
@@ -1531,6 +1645,11 @@ function downloadFilterExcel(){
   const search = (document.getElementById('filterSearch')?.value || '').trim().toLowerCase();
   const catFilter = document.getElementById('filterCategory')?.value || "All Categories";
   const grpFilter = document.getElementById('filterGroup')?.value || "All Groups";
+  const filterDateVal = document.getElementById('filterDate')?.value || '';
+  function passesDateFilter(d_iso){
+    if(!filterDateVal) return true;
+    return d_iso === filterDateVal;
+  }
   let filtered = [];
   if (filterType === 'expense') {
     filtered = expenses.filter(e => {
@@ -1538,6 +1657,7 @@ function downloadFilterExcel(){
       const mMatch = monthVal === 'all' || monthVal === 'overall' || p.month === parseInt(monthVal);
       const yMatch = yearVal === 'all' || yearVal === 'overall' || p.year === parseInt(yearVal);
       if(!mMatch || !yMatch) return false;
+      if(!passesDateFilter(e.date_iso)) return false;
       if(catFilter!== "All Categories" && catFilter !== NEW_CAT_LABEL && (e.category||'Others')!== catFilter) return false;
       if(search &&!(e.name||'').toLowerCase().includes(search) &&!(e.category||'').toLowerCase().includes(search)) return false;
       return true;
@@ -1548,6 +1668,7 @@ function downloadFilterExcel(){
       const mMatch = monthVal === 'all' || monthVal === 'overall' || p.month === parseInt(monthVal);
       const yMatch = yearVal === 'all' || yearVal === 'overall' || p.year === parseInt(yearVal);
       if(!mMatch || !yMatch) return false;
+      if(!passesDateFilter(g.date_iso)) return false;
       if(grpFilter !== "All Groups" && g.group_name !== grpFilter) return false;
       if(search && !(g.person_name||'').toLowerCase().includes(search) && !(g.group_name||'').toLowerCase().includes(search)) return false;
       return true;
@@ -1558,6 +1679,7 @@ function downloadFilterExcel(){
       const mMatch = monthVal === 'all' || monthVal === 'overall' || p.month === parseInt(monthVal);
       const yMatch = yearVal === 'all' || yearVal === 'overall' || p.year === parseInt(yearVal);
       if(!mMatch || !yMatch) return false;
+      if(!passesDateFilter(t.date_iso)) return false;
       if(repayFilter === 'completed' &&!t.is_received) return false;
       if(repayFilter === 'remaining' && t.is_received) return false;
       if(search &&!((t.payer||'').toLowerCase().includes(search) || (t.receiver||'').toLowerCase().includes(search))) return false;
@@ -1569,27 +1691,41 @@ function downloadFilterExcel(){
   if(filterType==='expense'){
     rows = filtered.map((e, idx)=>({"Sr No": idx+1, "Date": formatDate(e.date_iso), "Name": e.name, "Amount": Number(e.amount).toFixed(2), "Category": e.category||'Others'}));
   } else if(filterType==='group'){
-    // Excel format: Kanjibhai header then records then total per person
-    let grouped = {};
+    // Excel format: Group wise -> Person wise with totals
+    let groupWise = {};
     filtered.forEach(rec=>{
-      let key = rec.person_name.toLowerCase() + "|" + rec.group_name;
-      if(!grouped[key]) grouped[key] = { person: rec.person_name, group: rec.group_name, records: [] };
-      grouped[key].records.push(rec);
+      if(!groupWise[rec.group_name]) groupWise[rec.group_name] = [];
+      groupWise[rec.group_name].push(rec);
     });
-    let personKeys = Object.keys(grouped).sort();
-    personKeys.forEach(key=>{
-      let g = grouped[key];
-      g.records.sort((a,b)=> new Date(a.date_iso) - new Date(b.date_iso));
-      let personTotal = g.records.reduce((s,r)=>s+Number(r.amount||0),0);
-      rows.push({"Person": g.person, "Date": "", "Group": g.group, "Amount": ""});
-      g.records.forEach(rec=>{
-        rows.push({"Person": "", "Date": formatDate(rec.date_iso), "Group": rec.group_name, "Amount": Number(rec.amount).toFixed(2)});
+    let groupNames = Object.keys(groupWise).sort();
+    groupNames.forEach(grpName=>{
+      let recs = groupWise[grpName];
+      let groupTotal = recs.reduce((s,r)=>s+Number(r.amount||0),0);
+      rows.push({"Person": `Group: ${grpName}`, "Date": "", "Group": "", "Amount": ""});
+      let personWise = {};
+      recs.forEach(r=>{
+        let key = r.person_name.toLowerCase();
+        if(!personWise[key]) personWise[key] = { person: r.person_name, records: [] };
+        personWise[key].records.push(r);
       });
-      rows.push({"Person": `Total ${g.person}`, "Date": "", "Group": "", "Amount": personTotal.toFixed(2)});
+      Object.keys(personWise).sort().forEach(pk=>{
+        let pObj = personWise[pk];
+        pObj.records.sort((a,b)=> new Date(a.date_iso) - new Date(b.date_iso));
+        let pTotal = pObj.records.reduce((s,r)=>s+Number(r.amount||0),0);
+        rows.push({"Person": pObj.person, "Date": "", "Group": grpName, "Amount": ""});
+        pObj.records.forEach(rec=>{
+          rows.push({"Person": "", "Date": formatDate(rec.date_iso), "Group": rec.group_name, "Amount": Number(rec.amount).toFixed(2)});
+        });
+        rows.push({"Person": `Total ${pObj.person}`, "Date": "", "Group": "", "Amount": pTotal.toFixed(2)});
+        rows.push({"Person": "--------------------------------------------------", "Date": "", "Group": "", "Amount": ""});
+      });
+      rows.push({"Person": `Group Total ${grpName}`, "Date": "", "Group": "", "Amount": groupTotal.toFixed(2)});
+      rows.push({"Person": "==================================================", "Date": "", "Group": "", "Amount": ""});
       rows.push({"Person": "", "Date": "", "Group": "", "Amount": ""});
     });
     let grandTotal = filtered.reduce((s,i)=>s+Number(i.amount||0),0);
-    rows.push({"Person": `Grand Total (${grpFilter})`, "Date": "", "Group": "", "Amount": grandTotal.toFixed(2)});
+    let dateLabel = filterDateVal ? formatDate(filterDateVal) : "All Dates of Month";
+    rows.push({"Person": `Grand Total (${dateLabel})`, "Date": "", "Group": "", "Amount": grandTotal.toFixed(2)});
   } else {
     rows = filtered.map((t, idx)=>({"Sr No": idx+1, "Date": formatDate(t.date_iso), "Payer": t.payer, "Receiver": t.receiver, "Amount": Number(t.amount).toFixed(2), "Repaid": t.is_received?'Yes':'No', "Repay Date": t.received_date_iso ? formatDate(t.received_date_iso) : '-'}));
   }
