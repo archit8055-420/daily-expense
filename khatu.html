@@ -6,332 +6,192 @@
 <title>Daily Expense & Money Transaction</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f172a">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="stylesheet" href="khatu.css">
+<style>
+.download-option-btn{width:100%;padding:14px;margin:8px 0;border:2px solid #111;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:0.15s;}
+.download-option-btn.pdf{background:#dc2626;color:white;}
+.download-option-btn.pdf:hover{background:#b91c1c;}
+.download-option-btn.excel{background:#059669;color:white;}
+.download-option-btn.excel:hover{background:#047857;}
+</style>
 </head>
 <body>
 <div class="app-frame">
 
-  <!-- LOGIN -->
   <div id="loginScreen" class="screen auth-screen active">
     <div class="auth-panel">
       <div class="auth-title">Login</div>
-      <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();">
-        <input type="email" id="loginEmail" class="auth-input" placeholder="Email ID" required autocomplete="email">
-        <div class="pass-wrap">
-          <input type="password" id="loginPassword" class="auth-input" placeholder="Password" required autocomplete="current-password">
-          <button type="button" class="eye-btn" tabindex="-1" onclick="toggleTempShow('loginPassword', this)">👁</button>
-        </div>
+      <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();" autocomplete="on">
+        <input type="email" id="loginEmail" name="email" class="auth-input" placeholder="Email ID" required autocomplete="username">
+        <div class="pass-wrap"><input type="password" id="loginPassword" name="password" class="auth-input" placeholder="Password" required autocomplete="current-password"><button type="button" class="eye-btn" tabindex="-1" onclick="toggleTempShow('loginPassword', this)">👁</button></div>
         <button type="submit" class="auth-btn" id="loginBtn">Login</button>
       </form>
-      <div class="auth-links">
-        <button type="button" class="link-btn" id="forgotBtn" onclick="handleForgotPassword()">Forgot Password?</button>
-        <button type="button" class="link-btn" onclick="showScreen('signup')">Create New Account</button>
-      </div>
+      <div class="auth-links"><button type="button" class="link-btn" id="forgotBtn" onclick="handleForgotPassword()">Forgot Password?</button><button type="button" class="link-btn" onclick="showScreen('signup')">Create New Account</button></div>
       <div id="loginError" class="auth-error"></div>
     </div>
   </div>
 
-  <!-- SIGNUP -->
   <div id="signupScreen" class="screen auth-screen">
     <div class="auth-panel">
       <div class="auth-title">Sign Up</div>
       <form id="signupForm" onsubmit="event.preventDefault(); handleSignup();">
         <input type="email" id="signupEmail" class="auth-input" placeholder="Email ID" required autocomplete="email">
         <input type="text" id="signupUsername" class="auth-input" placeholder="Username" required>
-        <div class="pass-wrap">
-          <input type="password" id="signupPassword" class="auth-input" placeholder="Password" required minlength="6" autocomplete="new-password">
-          <button type="button" class="eye-btn" tabindex="-1" onclick="toggleTempShow('signupPassword', this)">👁</button>
-        </div>
-        <div class="pass-wrap">
-          <input type="password" id="signupRetype" class="auth-input" placeholder="Retype Password" required minlength="6" autocomplete="new-password">
-          <button type="button" class="eye-btn" tabindex="-1" onclick="toggleTempShow('signupRetype', this)">👁</button>
-        </div>
+        <div class="pass-wrap"><input type="password" id="signupPassword" class="auth-input" placeholder="Password" required minlength="6" autocomplete="new-password"><button type="button" class="eye-btn" tabindex="-1" onclick="toggleTempShow('signupPassword', this)">👁</button></div>
+        <div class="pass-wrap"><input type="password" id="signupRetype" class="auth-input" placeholder="Retype Password" required minlength="6" autocomplete="new-password"><button type="button" class="eye-btn" tabindex="-1" onclick="toggleTempShow('signupRetype', this)">👁</button></div>
         <button type="submit" class="auth-btn" id="signupBtn">Sign Up</button>
       </form>
-      <div class="auth-links">
-        <button type="button" class="link-btn" onclick="showScreen('login')">Already have account? Login</button>
-      </div>
+      <div class="auth-links"><button type="button" class="link-btn" onclick="showScreen('login')">Already have account? Login</button></div>
       <div id="signupError" class="auth-error"></div>
     </div>
   </div>
 
-  <!-- RESET PASSWORD -->
   <div id="resetPasswordScreen" class="screen auth-screen">
     <div class="auth-panel">
       <div class="auth-title">Reset Password</div>
-      <div style="text-align:left; margin-bottom:15px; font-weight:600; color:#334155;">
-        <div>Hello, <span id="resetUsername">User</span> 👋</div>
-        <div style="font-size:13px; margin-top:5px; word-break:break-all;">Account: <span id="resetEmailShow">-</span></div>
-      </div>
+      <div style="text-align:left; margin-bottom:15px; font-weight:600; color:#334155;"><div>Hello, <span id="resetUsername">User</span> 👋</div><div style="font-size:13px; margin-top:5px; word-break:break-all;">Account: <span id="resetEmailShow">-</span></div></div>
       <form id="resetForm" onsubmit="event.preventDefault(); handleUpdatePassword();">
-        <div class="pass-wrap">
-          <input type="password" id="newPassword" class="auth-input" placeholder="Enter New Password" required minlength="6">
-          <button type="button" class="eye-btn" tabindex="-1" onclick="toggleTempShow('newPassword', this)">👁</button>
-        </div>
-        <div class="pass-wrap">
-          <input type="password" id="retypeNewPassword" class="auth-input" placeholder="Retype Password" required minlength="6">
-          <button type="button" class="eye-btn" tabindex="-1" onclick="toggleTempShow('retypeNewPassword', this)">👁</button>
-        </div>
+        <div class="pass-wrap"><input type="password" id="newPassword" class="auth-input" placeholder="Enter New Password" required minlength="6"><button type="button" class="eye-btn" tabindex="-1" onclick="toggleTempShow('newPassword', this)">👁</button></div>
+        <div class="pass-wrap"><input type="password" id="retypeNewPassword" class="auth-input" placeholder="Retype Password" required minlength="6"><button type="button" class="eye-btn" tabindex="-1" onclick="toggleTempShow('retypeNewPassword', this)">👁</button></div>
         <button type="submit" class="auth-btn" id="confirmResetBtn">Confirm</button>
       </form>
       <div id="resetError" class="auth-error"></div>
     </div>
   </div>
 
-  <!-- PASSWORD SUCCESS -->
   <div id="passwordSuccessScreen" class="screen auth-screen">
     <div class="auth-panel">
       <div class="auth-title" style="color:#059669;">Password Reset</div>
-      <div style="text-align:center; margin:25px 0 20px; font-size:18px; font-weight:700; color:#0f172a; line-height:1.5;">
-        Hey, <span id="successUsername">User</span> 👋
-      </div>
-      <div style="text-align:center; font-size:16px; font-weight:600; color:#334155; line-height:1.7;">
-        You have successfully changed your password.<br><br>
-        Please go to the site and login with your new password.
-      </div>
+      <div style="text-align:center; margin:25px 0 20px; font-size:18px; font-weight:700; color:#0f172a; line-height:1.5;">Hey, <span id="successUsername">User</span> 👋</div>
+      <div style="text-align:center; font-size:16px; font-weight:600; color:#334155; line-height:1.7;">You have successfully changed your password.<br><br>Please go to the site and login with your new password.</div>
     </div>
   </div>
 
-  <!-- HOME -->
   <div id="homeScreen" class="screen">
-    <div class="deco calc">🧮</div>
-    <div class="deco wallet-top">💳</div>
-    <div class="deco shiva">🔱</div>
-    <div class="deco om">🕉</div>
-    <div class="deco feather">🦚</div>
-    <div class="deco krishna">🪈</div>
-    <div class="home-panel">
-      <div class="welcome-user">Welcome, <span id="homeUsername">User</span> 🕵️‍♂️</div>
-      <div class="btn-with-icon"><span class="side-icon">💼</span><button class="nav-btn" onclick="showScreen('expense'); loadExpenses();">Daily Expense</button></div>
-      <div class="btn-with-icon"><button class="nav-btn" onclick="showScreen('transaction'); loadTransactions();">Money Transaction</button><span class="side-icon">💸</span></div>
-      <div style="margin-top:25px;"><button class="logout-btn" onclick="handleLogout()">Logout</button></div>
-    </div>
+    <div class="deco calc">🧮</div><div class="deco wallet-top">💳</div><div class="deco shiva">🔱</div><div class="deco om">🕉</div><div class="deco feather">🦚</div><div class="deco krishna">🪈</div>
+    <div class="home-panel"><div class="welcome-user">Welcome, <span id="homeUsername">User</span> 🕵♂</div><div class="btn-with-icon"><span class="side-icon">💼</span><button class="nav-btn" onclick="showScreen('expense'); loadExpenses();">Daily Expense</button></div><div class="btn-with-icon"><button class="nav-btn" onclick="showScreen('transaction'); loadTransactions();">Money Transaction</button><span class="side-icon">💸</span></div><div class="btn-with-icon"><span class="side-icon">👥</span><button class="nav-btn" onclick="showScreen('group'); loadGroups();">Grouping</button></div><div style="margin-top:25px;"><button class="logout-btn" onclick="handleLogout()">Logout</button></div></div>
   </div>
 
-  <!-- DAILY EXPENSE -->
+  <!-- DAILY EXPENSE - NO DOWNLOAD BUTTON -->
   <div id="expenseScreen" class="screen app-bg">
     <button class="back-btn" onclick="showScreen('home')">← Home</button>
-    <div class="user-menu-wrap">
-      <button class="user-menu-btn" onclick="toggleUserMenu('expenseUserMenu')">👤</button>
-      <div id="expenseUserMenu" class="user-menu">
-        <button onclick="openProfile('expense')">Profile</button>
-        <button onclick="openDashboard('expense')">Dashboard</button>
-        <button onclick="openFilter('expense')">Filter</button>
-      </div>
-    </div>
+    <div class="user-menu-wrap"><button class="user-menu-btn" onclick="toggleUserMenu('expenseUserMenu')">👤</button><div id="expenseUserMenu" class="user-menu"><button onclick="openProfile('expense')">Profile</button><button onclick="openDashboard('expense')">Dashboard</button><button onclick="openFilter('expense')">Filter</button></div></div>
     <div class="title-cloud-wrap"><div class="title-cloud">Daily Expense</div></div>
     <div class="panel">
-      <div class="top-row">
-        <div class="pill">Select Month & Year</div>
-        <div class="select-pill"><select id="expMonth" onchange="renderExpenses()"></select></div>
-        <div class="select-pill"><select id="expYear" onchange="renderExpenses()"></select></div>
-        <div class="select-pill"><select id="expCategoryFilter" onchange="handleExpenseCategoryChange()"></select></div>
-        <button type="button" onclick="openDeleteCategoryDialog()" style="background:#dc2626;color:white;border:none;border-radius:20px;padding:6px 10px;font-size:12px;cursor:pointer;">🗑️ Delete Category</button>
-      </div>
-
+      <div class="top-row"><div class="pill">Select Month & Year</div><div class="select-pill"><select id="expMonth" onchange="renderExpenses()"></select></div><div class="select-pill"><select id="expYear" onchange="renderExpenses()"></select></div><div class="select-pill" id="filterCategoryWrap" style="position:relative;"><select id="expCategoryFilter" onchange="handleExpenseCategoryChange()" style="text-align-last:center; -webkit-appearance:none; appearance:none; padding-right:20px;"></select><span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; font-size:12px;">▼</span></div><button type="button" onclick="openDeleteCategoryDialog()" style="background:#dc2626;color:white;border:none;border-radius:20px;padding:6px 10px;font-size:12px;cursor:pointer;">🗑 Delete Category</button></div>
       <div class="section-label-wrap"><span class="section-label">Add Expense</span></div>
-      <form class="input-row" id="expForm" onsubmit="event.preventDefault(); addOrUpdateExpense();">
-        <input type="text" id="expName" oninput="capitalizeFirst(this)" class="teal-pill" placeholder="Expense Name" required autocomplete="off">
-        <input type="number" id="expAmount" class="teal-pill" placeholder="Enter Amount" required min="0.01" step="any" inputmode="decimal">
-        <div class="teal-pill date-pill" onclick="openDatePicker('expDate')">
-          <span id="expDateText">07-Sep-2026</span><span>📅</span>
-          <input type="date" id="expDate" required onchange="updateDateDisplay('expDate','expDateText')">
-        </div>
-        <button type="submit" class="done-btn" id="expDoneBtn">Done</button>
-      </form>
-
+      <form class="input-row" id="expForm" onsubmit="event.preventDefault(); addOrUpdateExpense();"><input type="text" id="expName" oninput="capitalizeFirst(this)" class="teal-pill" placeholder="Expense Name" required autocomplete="off"><input type="number" id="expAmount" class="teal-pill" placeholder="Enter Amount" required min="0.01" step="any" inputmode="decimal"><div class="teal-pill date-pill" onclick="openDatePicker('expDate')"><span id="expDateText">07-Sep-2026</span><span>📅</span><input type="date" id="expDate" required onchange="updateDateDisplay('expDate','expDateText')"></div><button type="submit" class="done-btn" id="expDoneBtn">Done</button></form>
       <div class="table-wrap" id="expenseTableWrap"><div class="empty-note">Loading...</div></div>
-      <div class="bottom-row">
+      <div class="bottom-row" style="justify-content:center;">
         <div class="total-box">Total Expense : ₹<span id="expTotal">0.00</span></div>
-        <button type="button" class="pdf-btn" onclick="downloadExpensePDF()">Download PDF</button>
+        <!-- Download button REMOVED as per requirement -->
       </div>
     </div>
   </div>
 
-  <!-- MONEY TRANSACTION -->
+  <!-- MONEY TRANSACTION - NO DOWNLOAD BUTTON -->
   <div id="transactionScreen" class="screen app-bg">
     <button class="back-btn" onclick="showScreen('home')">← Home</button>
-    <div class="user-menu-wrap">
-      <button class="user-menu-btn" onclick="toggleUserMenu('transactionUserMenu')">👤</button>
-      <div id="transactionUserMenu" class="user-menu">
-        <button onclick="openProfile('transaction')">Profile</button>
-        <button onclick="openDashboard('transaction')">Dashboard</button>
-        <button onclick="openFilter('transaction')">Filter</button>
-      </div>
-    </div>
+    <div class="user-menu-wrap"><button class="user-menu-btn" onclick="toggleUserMenu('transactionUserMenu')">👤</button><div id="transactionUserMenu" class="user-menu"><button onclick="openProfile('transaction')">Profile</button><button onclick="openDashboard('transaction')">Dashboard</button><button onclick="openFilter('transaction')">Filter</button></div></div>
     <div class="title-cloud-wrap"><div class="title-cloud">Money Transaction</div></div>
     <div class="panel">
-      <div class="top-row">
-        <div class="pill">Select Month & Year</div>
-        <div class="select-pill"><select id="txnMonth" onchange="renderTransactions()"></select></div>
-        <div class="select-pill"><select id="txnYear" onchange="renderTransactions()"></select></div>
-      </div>
+      <div class="top-row"><div class="pill">Select Month & Year</div><div class="select-pill"><select id="txnMonth" onchange="renderTransactions()"></select></div><div class="select-pill"><select id="txnYear" onchange="renderTransactions()"></select></div></div>
       <div class="section-label-wrap"><span class="section-label">Add Record</span></div>
-      <form class="input-row" id="txnForm" onsubmit="event.preventDefault(); addOrUpdateTransaction();">
-        <input type="text" id="txnFrom" oninput="capitalizeFirst(this)" class="teal-pill payer-input" placeholder="Payer" required autocomplete="off">
-        <input type="text" id="txnTo" oninput="capitalizeFirst(this)" class="teal-pill receiver-input" placeholder="Receiver" required autocomplete="off">
-        <input type="number" id="txnAmount" class="teal-pill amount-input" placeholder="Enter Amount" required min="0.01" step="any" inputmode="decimal">
-        <div class="teal-pill date-pill" onclick="openDatePicker('txnDate')">
-          <span id="txnDateText">07-Sep-2026</span><span style="font-size:18px;">📅</span>
-          <input type="date" id="txnDate" required onchange="updateDateDisplay('txnDate','txnDateText')">
-        </div>
-        <button type="submit" class="done-btn" id="txnDoneBtn">Done</button>
-      </form>
+      <form class="input-row" id="txnForm" onsubmit="event.preventDefault(); addOrUpdateTransaction();"><input type="text" id="txnFrom" oninput="capitalizeFirst(this)" class="teal-pill payer-input" placeholder="Payer" required autocomplete="off"><input type="text" id="txnTo" oninput="capitalizeFirst(this)" class="teal-pill receiver-input" placeholder="Receiver" required autocomplete="off"><input type="number" id="txnAmount" class="teal-pill amount-input" placeholder="Enter Amount" required min="0.01" step="any" inputmode="decimal"><div class="teal-pill date-pill" onclick="openDatePicker('txnDate')"><span id="txnDateText">07-Sep-2026</span><span style="font-size:18px;">📅</span><input type="date" id="txnDate" required onchange="updateDateDisplay('txnDate','txnDateText')"></div><button type="submit" class="done-btn" id="txnDoneBtn">Done</button></form>
       <div class="table-wrap" id="transactionTableWrap"><div class="empty-note">Loading...</div></div>
-      <div class="bottom-row">
+      <div class="bottom-row" style="justify-content:center;">
         <div class="total-box">Total : ₹<span id="txnTotal">0.00</span></div>
-        <button type="button" class="pdf-btn" onclick="downloadTransactionPDF()">Download PDF</button>
+        <!-- Download button REMOVED as per requirement -->
       </div>
     </div>
   </div>
 
-  <!-- DELETE DIALOGS -->
-  <div id="deleteDialog" class="delete-dialog-overlay">
+  <!-- GROUP - UPAD / JAMA LEDGER -->
+  <div id="groupScreen" class="screen app-bg">
+    <button class="back-btn" onclick="showScreen('home')">← Home</button>
+    <div class="user-menu-wrap"><button class="user-menu-btn" onclick="toggleUserMenu('groupUserMenu')">👤</button><div id="groupUserMenu" class="user-menu"><button onclick="openProfile('group')">Profile</button><button onclick="openDashboard('group')">Dashboard</button><button onclick="openFilter('group')">Filter</button></div></div>
+    <div class="title-cloud-wrap"><div class="title-cloud">Grouping</div></div>
+    <div class="panel">
+      <div class="top-row">
+        <div class="pill">Select Group</div>
+        <div class="select-pill" style="position:relative;"><select id="grpGroup" onchange="handleGroupChange()" style="text-align-last:center; -webkit-appearance:none; appearance:none; padding-right:20px;"></select><span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; font-size:12px;">▼</span></div>
+        <button type="button" onclick="openDeleteGroupDialog()" style="background:#dc2626;color:white;border:none;border-radius:20px;padding:6px 10px;font-size:12px;cursor:pointer;">🗑 Delete Group</button>
+      </div>
+      <div class="top-row" style="margin-top:10px; border-bottom:none; padding-bottom:0; display:flex; align-items:center; gap:10px;">
+        <div class="pill" style="background:#0f766e;color:white; flex-shrink:0;">Search</div>
+        <input type="text" id="grpSearch" class="teal-pill" placeholder="Search by Name" oninput="renderGroups()" style="flex:1; text-align:center; background:#115e59; color:white;">
+        <button type="button" onclick="document.getElementById('grpSearch').value=''; renderGroups();" style="background:#5397f6;color:white;border:none;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:bold;cursor:pointer;flex-shrink:0;">Clear</button>
+      </div>
+      <div class="section-label-wrap"><span class="section-label">Add Group Entry</span></div>
+      <form class="input-row" id="grpForm" onsubmit="event.preventDefault(); addOrUpdateGroup();">
+        <input type="text" id="grpPerson" oninput="capitalizeFirst(this)" class="teal-pill" placeholder="Enter Name" required autocomplete="off">
+        <input type="number" id="grpAmount" class="teal-pill" placeholder="Amount" required min="0.01" step="any" inputmode="decimal">
+        <div class="teal-pill date-pill" onclick="openDatePicker('grpDate')"><span id="grpDateText">07-Sep-2026</span><span>📅</span><input type="date" id="grpDate" required onchange="updateDateDisplay('grpDate','grpDateText')"></div>
+        <button type="submit" class="done-btn" id="grpDoneBtn">Done</button>
+      </form>
+      <div class="table-wrap" id="groupTableWrap" style="height:340px; overflow-y:auto;"><div class="empty-note">Loading...</div></div>
+      <div class="bottom-row" style="justify-content:center; margin-top:10px;">
+        <div class="total-box">Total <span id="grpGroupName">Upad</span> : ₹<span id="grpTotal">0.00</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="deleteDialog" class="delete-dialog-overlay"><div class="delete-dialog"><div class="delete-dialog-title">Delete Data</div><div class="delete-dialog-message">Sure you want to delete this data?</div><div class="delete-dialog-actions"><button type="button" class="cancel-delete-btn" onclick="closeDeleteDialog()">Cancel</button><button type="button" class="confirm-delete-btn" onclick="confirmDelete()">Delete</button></div></div></div>
+  <div id="deleteAccountDialog" class="delete-dialog-overlay"><div class="delete-dialog"><div class="delete-dialog-title" style="color:#dc2626;">Delete Account</div><div class="delete-dialog-message">Your full data and all records will be permanently deleted.<br><br>This action cannot be undone.</div><div class="delete-dialog-actions"><button type="button" class="cancel-delete-btn" onclick="closeDeleteAccountDialog()">Cancel</button><button type="button" class="confirm-delete-btn" onclick="confirmDeleteAccount()">Delete</button></div></div></div>
+
+  <!-- DOWNLOAD DIALOG - KEPT FOR FILTER ONLY -->
+  <div id="downloadDialog" class="delete-dialog-overlay">
     <div class="delete-dialog">
-      <div class="delete-dialog-title">Delete Data</div>
-      <div class="delete-dialog-message">Sure you want to delete this data?</div>
-      <div class="delete-dialog-actions">
-        <button type="button" class="cancel-delete-btn" onclick="closeDeleteDialog()">Cancel</button>
-        <button type="button" class="confirm-delete-btn" onclick="confirmDelete()">Delete</button>
-      </div>
+      <div class="delete-dialog-title" style="color:#0f172a;">Download</div>
+      <div class="delete-dialog-message" style="text-align:center;">Select download format</div>
+      <button type="button" class="download-option-btn pdf" onclick="handleDownloadAsPDF()">📄 As PDF</button>
+      <button type="button" class="download-option-btn excel" onclick="handleDownloadAsExcel()">📊 As Excel</button>
+      <div style="text-align:center; margin-top:15px;"><button type="button" class="cancel-delete-btn" onclick="closeDownloadDialog()" style="width:100%;">Cancel</button></div>
     </div>
   </div>
 
-  <div id="deleteAccountDialog" class="delete-dialog-overlay">
-    <div class="delete-dialog">
-      <div class="delete-dialog-title" style="color:#dc2626;">Delete Account</div>
-      <div class="delete-dialog-message">Your full data and all records will be permanently deleted.<br><br>This action cannot be undone.</div>
-      <div class="delete-dialog-actions">
-        <button type="button" class="cancel-delete-btn" onclick="closeDeleteAccountDialog()">Cancel</button>
-        <button type="button" class="confirm-delete-btn" onclick="confirmDeleteAccount()">Delete</button>
-      </div>
-    </div>
-  </div>
+  <div id="profileScreen" class="screen app-bg profile-screen"><button class="back-btn" onclick="goBack()">← Back</button><div class="title-cloud-wrap"><div class="title-cloud">Profile</div></div><div class="profile-panel"><div class="profile-icon">👤</div><div class="profile-row"><div class="profile-label">Username</div><div class="profile-value" id="profileUsername">User</div></div><div class="profile-row"><div class="profile-label">Email</div><div class="profile-value" id="profileEmail">-</div></div><div style="margin-top:30px;text-align:center;"><button class="delete-account-btn" onclick="openDeleteAccountDialog()">Delete Account</button></div></div></div>
 
-  <!-- PROFILE -->
-  <div id="profileScreen" class="screen app-bg profile-screen">
-    <button class="back-btn" onclick="goBack()">← Back</button>
-    <div class="title-cloud-wrap"><div class="title-cloud">Profile</div></div>
-    <div class="profile-panel">
-      <div class="profile-icon">👤</div>
-      <div class="profile-row"><div class="profile-label">Username</div><div class="profile-value" id="profileUsername">User</div></div>
-      <div class="profile-row"><div class="profile-label">Email</div><div class="profile-value" id="profileEmail">-</div></div>
-      <div style="margin-top:30px;text-align:center;"><button class="delete-account-btn" onclick="openDeleteAccountDialog()">Delete Account</button></div>
-    </div>
-  </div>
+  <div id="dashboardScreen" class="screen app-bg dashboard-screen"><button class="back-btn" onclick="goBack()">← Back</button><div class="title-cloud-wrap"><div class="title-cloud">📊 Interactive Dashboard</div></div><div class="dashboard-panel"><div class="dashboard-filter-row"><div class="dash-select-pill"><select id="dashMonth"></select></div><div class="dash-select-pill"><select id="dashYear"></select></div><button class="dash-ok-btn" onclick="applyDashboardFilter()">Ok</button></div><div class="dashboard-cards"><div class="dashboard-card expense-card"><div class="dashboard-card-title">Total Expense</div><div class="dashboard-card-value">₹<span id="dashboardTotalExpense">0.00</span></div></div><div class="dashboard-card month-expense-card"><div class="dashboard-card-title" id="dashMonthExpenseTitle">This Month Expense</div><div class="dashboard-card-value">₹<span id="dashboardMonthExpense">0.00</span></div></div><div class="dashboard-card transaction-card"><div class="dashboard-card-title">Total Transaction</div><div class="dashboard-card-value">₹<span id="dashboardTotalTransaction">0.00</span></div></div><div class="dashboard-card month-transaction-card"><div class="dashboard-card-title" id="dashMonthTransactionTitle">This Month Transaction</div><div class="dashboard-card-value">₹<span id="dashboardMonthTransaction">0.00</span></div></div></div><div class="dashboard-summary"><div class="dashboard-section-title">Monthly Expense Comparison</div><div id="expenseChart" class="chart-box"></div></div><div class="dashboard-summary"><div class="dashboard-section-title">Monthly Transaction Comparison</div><div id="transactionChart" class="chart-box"></div></div><div class="dashboard-summary"><div class="dashboard-section-title">Useful Summary</div><div id="dashboardSummary" class="useful-summary">Loading...</div></div></div></div>
 
-  <!-- DASHBOARD -->
-  <div id="dashboardScreen" class="screen app-bg dashboard-screen">
-    <button class="back-btn" onclick="goBack()">← Back</button>
-    <div class="title-cloud-wrap"><div class="title-cloud">📊 Interactive Dashboard</div></div>
-    <div class="dashboard-panel">
-      <div class="dashboard-filter-row">
-        <div class="dash-select-pill"><select id="dashMonth"></select></div>
-        <div class="dash-select-pill"><select id="dashYear"></select></div>
-        <button class="dash-ok-btn" onclick="applyDashboardFilter()">Ok</button>
-      </div>
-      <div class="dashboard-cards">
-        <div class="dashboard-card expense-card"><div class="dashboard-card-title">Total Expense</div><div class="dashboard-card-value">₹<span id="dashboardTotalExpense">0.00</span></div></div>
-        <div class="dashboard-card month-expense-card"><div class="dashboard-card-title" id="dashMonthExpenseTitle">This Month Expense</div><div class="dashboard-card-value">₹<span id="dashboardMonthExpense">0.00</span></div></div>
-        <div class="dashboard-card transaction-card"><div class="dashboard-card-title">Total Transaction</div><div class="dashboard-card-value">₹<span id="dashboardTotalTransaction">0.00</span></div></div>
-        <div class="dashboard-card month-transaction-card"><div class="dashboard-card-title" id="dashMonthTransactionTitle">This Month Transaction</div><div class="dashboard-card-value">₹<span id="dashboardMonthTransaction">0.00</span></div></div>
-      </div>
-      <div class="dashboard-summary"><div class="dashboard-section-title">Monthly Expense Comparison</div><div id="expenseChart" class="chart-box"></div></div>
-      <div class="dashboard-summary"><div class="dashboard-section-title">Monthly Transaction Comparison</div><div id="transactionChart" class="chart-box"></div></div>
-      <div class="dashboard-summary"><div class="dashboard-section-title">Useful Summary</div><div id="dashboardSummary" class="useful-summary">Loading...</div></div>
-    </div>
-  </div>
-
-  <!-- FILTER -->
+  <!-- FILTER - DOWNLOAD BUTTON KEPT HERE -->
   <div id="filterScreen" class="screen app-bg">
     <button class="back-btn" onclick="goBack()">← Back</button>
     <div class="title-cloud-wrap"><div class="title-cloud" id="filterTitle">Filter Your Data</div></div>
     <div class="panel">
-      <div class="top-row">
-        <div class="pill">Select Month & Year</div>
-        <div class="select-pill"><select id="filterMonth" onchange="renderFilterResults()"></select></div>
-        <div class="select-pill"><select id="filterYear" onchange="renderFilterResults()"></select></div>
-        <div class="select-pill" style="position:relative;">
-          <select id="filterCategory" style="text-align-last:center; -webkit-appearance:none; appearance:none; padding-right:20px;"></select>
-          <span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; font-size:12px;">▼</span>
-        </div>
-      </div>
-
-      <div id="repayFilterRow" class="top-row" style="margin-top:10px;border-bottom:none;padding-bottom:0;display:none;gap:10px;justify-content:center;">
-        <button type="button" id="btnAllRepay" onclick="setRepayFilter('all')" style="background:#f89100;color:white;border:none;border-radius:20px;padding:8px 16px;font-weight:bold;cursor:pointer;">All Data</button>
-        <button type="button" id="btnRepayCompleted" onclick="setRepayFilter('completed')" style="background:#059669;color:white;border:none;border-radius:20px;padding:8px 16px;font-weight:bold;cursor:pointer;">Repay Completed</button>
-        <button type="button" id="btnRemaining" onclick="setRepayFilter('remaining')" style="background:#dc2626;color:white;border:none;border-radius:20px;padding:8px 16px;font-weight:bold;cursor:pointer;">Remaining</button>
-      </div>
-
-      <div class="top-row" style="margin-top:12px;border-bottom:none;padding-bottom:0;display:flex;align-items:center;gap:10px;">
-        <div class="pill" style="background:#0f766e;color:white;flex-shrink:0;">Search</div>
-        <input type="text" id="filterSearch" class="teal-pill" placeholder="Search your Record" oninput="renderFilterResults()" style="flex:1;text-align:center;background:#115e59;color:white;">
-        <button type="button" onclick="document.getElementById('filterSearch').value=''; renderFilterResults();" style="background:#5397f6;color:white;border:none;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:bold;cursor:pointer;flex-shrink:0;">Clear</button>
-      </div>
-
-      <div class="table-wrap" id="filterTableWrap" style="flex:1;margin-top:15px;height:330px;overflow-y:auto;">
-        <div class="empty-note">Type something to search...</div>
-      </div>
-
+      <div class="top-row"><div class="pill">Select Month & Year</div><div class="select-pill"><select id="filterMonth" onchange="renderFilterResults()"></select></div><div class="select-pill"><select id="filterYear" onchange="renderFilterResults()"></select></div><div class="select-pill" id="filterCategoryWrap2" style="position:relative;"><select id="filterCategory" style="text-align-last:center; -webkit-appearance:none; appearance:none; padding-right:20px;"></select><span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; font-size:12px;">▼</span></div><div class="select-pill" id="filterGroupWrap" style="position:relative; display:none;"><select id="filterGroup" style="text-align-last:center; -webkit-appearance:none; appearance:none; padding-right:20px;"></select><span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; font-size:12px;">▼</span></div></div>
+      <div id="repayFilterRow" class="top-row" style="margin-top:10px;border-bottom:none;padding-bottom:0;display:none;gap:10px;justify-content:center;"><button type="button" id="btnAllRepay" onclick="setRepayFilter('all')" style="background:#f89100;color:white;border:none;border-radius:20px;padding:8px 16px;font-weight:bold;cursor:pointer;">All Data</button><button type="button" id="btnRepayCompleted" onclick="setRepayFilter('completed')" style="background:#059669;color:white;border:none;border-radius:20px;padding:8px 16px;font-weight:bold;cursor:pointer;">Repay Completed</button><button type="button" id="btnRemaining" onclick="setRepayFilter('remaining')" style="background:#dc2626;color:white;border:none;border-radius:20px;padding:8px 16px;font-weight:bold;cursor:pointer;">Remaining</button></div>
+      <div class="top-row" style="margin-top:12px;border-bottom:none;padding-bottom:0;display:flex;align-items:center;gap:10px;"><div class="pill" style="background:#0f766e;color:white;flex-shrink:0;">Search</div><input type="text" id="filterSearch" class="teal-pill" placeholder="Search your Record" oninput="renderFilterResults()" style="flex:1;text-align:center;background:#115e59;color:white;"><button type="button" onclick="document.getElementById('filterSearch').value=''; renderFilterResults();" style="background:#5397f6;color:white;border:none;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:bold;cursor:pointer;flex-shrink:0;">Clear</button></div>
+      <div class="table-wrap" id="filterTableWrap" style="flex:1;margin-top:15px;height:330px;overflow-y:auto;"><div class="empty-note">Type something to search...</div></div>
       <div class="bottom-row" style="margin-top:12px;flex-shrink:0;">
         <div class="total-box" id="filterTotalBox">Total : ₹0.00</div>
-        <button type="button" class="pdf-btn" onclick="downloadFilterPDF()">Download PDF</button>
+        <button type="button" class="pdf-btn" onclick="openDownloadDialog('filter')">Download</button>
       </div>
     </div>
   </div>
 
-</div><!-- end app-frame -->
-
-<!-- OFFLINE -->
-<div id="offlineScreen">
-  <div class="offline-box">
-    <div class="offline-icon">📡</div>
-    <div class="offline-title">No Internet Connection</div>
-    <div class="offline-text">Please connect your device to the internet<br>and try again.</div>
-    <button class="offline-btn" onclick="checkInternetAndReload()">Try Again</button>
-  </div>
 </div>
 
-<!-- NEW CATEGORY DIALOG -->
-<div id="newCategoryDialog" class="delete-dialog-overlay">
-  <div class="delete-dialog">
-    <div class="delete-dialog-title">New Category</div>
-    <input type="text" id="newCategoryInput" class="auth-input" placeholder="e.g. Milk" style="margin-top:15px;border:1px solid #ccc;">
-    <div class="delete-dialog-actions" style="margin-top:15px;">
-      <button class="cancel-delete-btn" onclick="closeNewCategoryDialog()">Cancel</button>
-      <button class="confirm-delete-btn" style="background:#059669;" onclick="confirmNewCategory()">Create</button>
-    </div>
-  </div>
-</div>
+<div id="offlineScreen"><div class="offline-box"><div class="offline-icon">📡</div><div class="offline-title">No Internet Connection</div><div class="offline-text">Please connect your device to the internet<br>and try again.</div><button class="offline-btn" onclick="checkInternetAndReload()">Try Again</button></div></div>
 
-<!-- DELETE CATEGORY DIALOG -->
-<div id="deleteCategoryDialog" class="delete-dialog-overlay">
-  <div class="delete-dialog" style="padding:20px;">
-    <div class="delete-dialog-title" style="color:#dc2626;font-size:18px;font-weight:800;">Delete Category</div>
-    <div style="margin-top:18px;position:relative;">
-      <div id="customCategoryBox" onclick="toggleCustomCategoryList()" style="border:2px solid #111;border-radius:12px;background:#dbeafe;padding:13px 14px;font-size:16px;font-weight:700;text-align:center;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
-        <span id="customCategoryValue" style="flex:1;text-align:center;">Select Category</span>
-        <span style="font-size:14px;">▼</span>
-      </div>
-      <div id="customCategoryList" style="display:none;position:absolute;top:52px;left:0;right:0;background:white;border:2px solid #111;border-radius:12px;max-height:180px;overflow-y:auto;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>
-      <select id="deleteCategorySelect" style="display:none;"></select>
-    </div>
-    <div style="font-size:13px;margin-top:14px;color:#dc2626;font-weight:600;line-height:1.4;text-align:center;">
-      ⚠️ If you delete this category, all records associated with it will be permanently deleted.
-    </div>
-    <div class="delete-dialog-actions" style="margin-top:18px;display:flex;gap:10px;justify-content:center;">
-      <button class="cancel-delete-btn" onclick="closeDeleteCategoryDialog()" style="border:2px solid #333;padding:10px 22px;border-radius:10px;font-weight:700;">Cancel</button>
-      <button class="confirm-delete-btn" style="background:#dc2626;padding:10px 26px;border-radius:10px;font-weight:700;border:none;color:white;" onclick="confirmDeleteCategory()">Delete</button>
-    </div>
-  </div>
-</div>
+<div id="newCategoryDialog" class="delete-dialog-overlay"><div class="delete-dialog"><div class="delete-dialog-title">New Category</div><input type="text" id="newCategoryInput" class="auth-input" placeholder="e.g. Milk" style="margin-top:15px;border:1px solid #ccc;"><div class="delete-dialog-actions" style="margin-top:15px;"><button class="cancel-delete-btn" onclick="closeNewCategoryDialog()">Cancel</button><button class="confirm-delete-btn" style="background:#059669;" onclick="confirmNewCategory()">Create</button></div></div></div>
+
+<div id="deleteCategoryDialog" class="delete-dialog-overlay"><div class="delete-dialog" style="padding:20px;"><div class="delete-dialog-title" style="color:#dc2626;font-size:18px;font-weight:800;">Delete Category</div><div style="margin-top:18px;position:relative;"><div id="customCategoryBox" onclick="toggleCustomCategoryList()" style="border:2px solid #111;border-radius:12px;background:#dbeafe;padding:13px 14px;font-size:16px;font-weight:700;text-align:center;cursor:pointer;display:flex;justify-content:space-between;align-items:center;"><span id="customCategoryValue" style="flex:1;text-align:center;">Select Category</span><span style="font-size:14px;">▼</span></div><div id="customCategoryList" style="display:none;position:absolute;top:52px;left:0;right:0;background:white;border:2px solid #111;border-radius:12px;max-height:180px;overflow-y:auto;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div><select id="deleteCategorySelect" style="display:none;"></select></div><div style="font-size:13px;margin-top:14px;color:#dc2626;font-weight:600;line-height:1.4;text-align:center;">⚠ If you delete this category, all records associated with it will be permanently deleted.</div><div class="delete-dialog-actions" style="margin-top:18px;display:flex;gap:10px;justify-content:center;"><button class="cancel-delete-btn" onclick="closeDeleteCategoryDialog()" style="border:2px solid #333;padding:10px 22px;border-radius:10px;font-weight:700;">Cancel</button><button class="confirm-delete-btn" style="background:#dc2626;padding:10px 26px;border-radius:10px;font-weight:700;border:none;color:white;" onclick="confirmDeleteCategory()">Delete</button></div></div></div>
+
+<!-- NEW GROUP DIALOG -->
+<div id="newGroupDialog" class="delete-dialog-overlay"><div class="delete-dialog"><div class="delete-dialog-title">New Group</div><input type="text" id="newGroupInput" class="auth-input" placeholder="e.g. Upad, Jama" style="margin-top:15px;border:1px solid #ccc;"><div class="delete-dialog-actions" style="margin-top:15px;"><button class="cancel-delete-btn" onclick="closeNewGroupDialog()">Cancel</button><button class="confirm-delete-btn" style="background:#059669;" onclick="confirmNewGroup()">Create</button></div></div></div>
+
+<!-- DELETE GROUP DIALOG -->
+<div id="deleteGroupDialog" class="delete-dialog-overlay"><div class="delete-dialog" style="padding:20px;"><div class="delete-dialog-title" style="color:#dc2626;font-size:18px;font-weight:800;">Delete Group</div><div style="margin-top:18px;position:relative;"><div id="customGroupBox" onclick="toggleCustomGroupList()" style="border:2px solid #111;border-radius:12px;background:#dbeafe;padding:13px 14px;font-size:16px;font-weight:700;text-align:center;cursor:pointer;display:flex;justify-content:space-between;align-items:center;"><span id="customGroupValue" style="flex:1;text-align:center;">Select Group</span><span style="font-size:14px;">▼</span></div><div id="customGroupList" style="display:none;position:absolute;top:52px;left:0;right:0;background:white;border:2px solid #111;border-radius:12px;max-height:180px;overflow-y:auto;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div><select id="deleteGroupSelect" style="display:none;"></select></div><div style="font-size:13px;margin-top:14px;color:#dc2626;font-weight:600;line-height:1.4;text-align:center;">⚠ If you delete this group, all records associated with it will be permanently deleted.</div><div class="delete-dialog-actions" style="margin-top:18px;display:flex;gap:10px;justify-content:center;"><button class="cancel-delete-btn" onclick="closeDeleteGroupDialog()" style="border:2px solid #333;padding:10px 22px;border-radius:10px;font-weight:700;">Cancel</button><button class="confirm-delete-btn" style="background:#dc2626;padding:10px 26px;border-radius:10px;font-weight:700;border:none;color:white;" onclick="confirmDeleteGroup()">Delete</button></div></div></div>
+
+<!-- ADD AMOUNT DIALOG FOR GROUP (+Add) -->
+<div id="addAmountDialog" class="delete-dialog-overlay"><div class="delete-dialog"><div class="delete-dialog-title">Add Amount</div><div style="margin-top:10px; font-weight:600; color:#334155;">Person: <span id="addAmountPerson">-</span> | Group: <span id="addAmountGroup">-</span></div><input type="number" id="addAmountInput" class="auth-input" placeholder="Enter Next Amount" style="margin-top:15px;border:1px solid #ccc;" min="0.01" step="any"><div class="delete-dialog-actions" style="margin-top:15px;"><button class="cancel-delete-btn" onclick="closeAddAmountDialog()">Cancel</button><button class="confirm-delete-btn" style="background:#059669;" onclick="confirmAddAmount()">Ok - Add</button></div></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <div id="bottomMsgBar" class="bottom-msg-bar"></div>
-<script src="khatu.js?v=5.1"></script>
+<script src="khatu.js?v=7.2"></script>
 </body>
 </html>
