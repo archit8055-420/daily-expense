@@ -37,6 +37,25 @@ var currentUserId = null;
 var currentCategoryTarget = null;
 var pendingDownloadType = null; // expense / transaction / filter
 
+// ---------- TEMPORARY MEMORY LOGIC - NO LOCALSTORAGE FOR RECORDS ----------
+// Aa temporary memory che - khali RAM ma rese, Supabase ma save thai jay tyare clear thai jase
+// Real data Supabase sivay kyay store nathi thato
+var tempMemory = {
+  expenses: [], // [{ tempId, data }]
+  transactions: [],
+  groups: []
+};
+function addToTempMemory(type, tempId, data){
+  // type: 'expenses' | 'transactions' | 'groups'
+  tempMemory[type].push({ tempId, data, time: Date.now() });
+  console.log(`[TEMP MEMORY] ${type} ma ${tempId} add thayu - RAM ma j che, Supabase ma javanu baki che`);
+}
+function clearFromTempMemory(type, tempId){
+  let before = tempMemory[type].length;
+  tempMemory[type] = tempMemory[type].filter(t=>String(t.tempId)!==String(tempId));
+  console.log(`[TEMP MEMORY] ${type} ma ${tempId} Supabase ma save thai gayu - have RAM mathi clear thai gayu. Baki: ${tempMemory[type].length} (pela ${before} hata)`);
+}
+
 const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DEFAULT_CATEGORIES = ["Others","Petrol","Cement"];
 const NEW_CAT_LABEL = "➕ New Category...";
@@ -461,18 +480,16 @@ async function addOrUpdateExpense() {
   const user = await getCurrentUser(); if (!user) return showBottomMessage("Login nathi", "error");
   const nameInput = document.getElementById('expName');
   let name = nameInput ? nameInput.value.trim() : "";
-  const amount = parseFloat(document.getElementById('expAmount').value);
+  const amountVal = document.getElementById('expAmount').value;
+  const amount = parseFloat(amountVal);
   const date = document.getElementById('expDate').value || todayISO();
   let catSel = document.getElementById('expCategoryFilter')?.value || 'Others';
   if(catSel === NEW_CAT_LABEL) return handleExpenseCategoryChange('expCategoryFilter');
   if(catSel === 'All Categories') catSel = 'Others';
-  // LOGIC: Others ma name joiye, bija category ma direct amount
   if(catSel === 'Others'){
     if(!name) return showBottomMessage("Expense Name lakho", "error");
   }else{
-    // Biji category ma name optional - category j name bani jase
     if(!name) name = catSel;
-    // Petrol/Cement ma Bags/Liter logic rakhyu
     if(name && !isNaN(name)){
       if(catSel.toLowerCase() === 'cement') name = `${name} Bags`;
       else if(catSel.toLowerCase() === 'petrol') name = `${name} Liter`;
@@ -487,35 +504,59 @@ async function addOrUpdateExpense() {
         if(catSel.toLowerCase() === 'petrol' && /^\d+(\.\d+)?$/.test(name.trim())) name = `${name.trim()} Liter`;
     }
   }
-  if(catSel !== 'Others' && name === catSel){
-    // keep as is, e.g. Petrol
-  }
   name = capitalizeFirstLetter(name);
   const btn = document.getElementById('expDoneBtn');
-  btn.disabled = true; btn.textContent = 'Saving...';
+  // FAST PATH - Temporary Memory Logic
+  const isEdit = editExpenseId !== null;
+  const tempId = isEdit ? editExpenseId : 'tmp_'+Date.now();
+  const newRecord = { id: tempId, name, amount, date_iso: date, category: catSel, user_id: user.id };
+  // STEP 1: Temporary memory ma save karo - RAM ma j, localStorage ma nahi
+  if(!isEdit){
+    addToTempMemory('expenses', tempId, newRecord);
+    expenses.push(newRecord); // Main list ma pan tarat dekhai jase
+  }else{
+    let idx = expenses.findIndex(e=>String(e.id)===String(editExpenseId));
+    if(idx>=0) expenses[idx] = { ...expenses[idx], ...newRecord, id: editExpenseId };
+  }
+  renderExpenses();
+  scrollTableToBottom('expenseTableWrap');
+  if(document.getElementById('expName')) document.getElementById('expName').value = ''; 
+  document.getElementById('expAmount').value = '';
+  updateDateDisplay('expDate','expDateText');
+  const savedEditId = editExpenseId;
+  editExpenseId = null;
+  btn.textContent = 'Done';
+  setTimeout(()=>{ 
+    let cat = document.getElementById('expCategoryFilter')?.value;
+    if(cat === 'Others') document.getElementById('expName')?.focus();
+    else document.getElementById('expAmount')?.focus();
+  }, 50);
+  if(isEdit) showBottomMessage("Updated in "+catSel, "success");
+  else showBottomMessage(`Added in ${catSel} (Temp memory)`, "success");
+  // STEP 2: Background ma Supabase ma save karo
   try {
-    if (editExpenseId !== null) {
-      const { error } = await supabaseClient.from('expenses').update({ name, amount, date_iso: date, category: catSel }).eq('id', editExpenseId).eq('user_id', user.id);
+    if (isEdit) {
+      const { error } = await supabaseClient.from('expenses').update({ name, amount, date_iso: date, category: catSel }).eq('id', savedEditId).eq('user_id', user.id);
       if(error) throw error;
-      showBottomMessage("Updated in "+catSel, "success"); editExpenseId = null;
     } else {
-      const { error } = await supabaseClient.from('expenses').insert({ name, amount, date_iso: date, category: catSel, user_id: user.id });
+      const { data, error } = await supabaseClient.from('expenses').insert({ name, amount, date_iso: date, category: catSel, user_id: user.id }).select().single();
       if(error) throw error;
-      showBottomMessage(`Added in ${catSel}`, "success");
+      if(data){
+        let idx = expenses.findIndex(e=>String(e.id)===String(tempId));
+        if(idx>=0) expenses[idx] = data; // Real ID thi replace
+        // STEP 3: Supabase ma save thai gayu etle temporary memory clear
+        clearFromTempMemory('expenses', tempId);
+        showBottomMessage(`Saved to Supabase - Memory cleared`, "success");
+      }
     }
-    if(document.getElementById('expName')) document.getElementById('expName').value = ''; 
-    document.getElementById('expAmount').value = '';
-    document.getElementById('expDate').value = todayISO();
-    updateDateDisplay('expDate','expDateText');
-    handleExpenseCategoryChange();
-    await loadExpenses();
-    setTimeout(()=>{ 
-      let cat = document.getElementById('expCategoryFilter')?.value;
-      if(cat === 'Others') document.getElementById('expName')?.focus();
-      else document.getElementById('expAmount')?.focus();
-    }, 100);
-  } catch(err){ showBottomMessage(err.message,"error"); }
-  finally{ btn.disabled=false; btn.textContent='Done'; }
+  } catch(err){
+    showBottomMessage(err.message,"error");
+    if(!isEdit){
+      expenses = expenses.filter(e=>String(e.id)!==String(tempId));
+      clearFromTempMemory('expenses', tempId);
+      renderExpenses();
+    }
+  }
 }
 function editExpense(id) {
   const item = expenses.find(e => String(e.id) === String(id)); if (!item) return;
@@ -530,10 +571,14 @@ function editExpense(id) {
 }
 function deleteExpense(id) { openDeleteDialog('expense', id); }
 async function performDeleteExpense(id) {
-  if (await deleteRow('expenses', id)) {
-    if (String(editExpenseId) === String(id)) { editExpenseId = null; document.getElementById('expDoneBtn').textContent = 'Done'; }
-    showBottomMessage("Expense deleted", "success"); await loadExpenses();
-  }
+  // Fast delete
+  let idx = expenses.findIndex(e=>String(e.id)===String(id));
+  let backup = null;
+  if(idx>=0){ backup = expenses[idx]; expenses.splice(idx,1); renderExpenses(); }
+  if (String(editExpenseId) === String(id)) { editExpenseId = null; document.getElementById('expDoneBtn').textContent = 'Done'; }
+  showBottomMessage("Expense deleted", "success");
+  const ok = await deleteRow('expenses', id);
+  if(!ok && backup){ expenses.splice(idx,0,backup); renderExpenses(); }
 }
 function handleExpenseCategoryChange(){
   let sel = document.getElementById('expCategoryFilter');
@@ -617,25 +662,64 @@ async function addOrUpdateTransaction(){
   const to = capitalizeFirstLetter(toInput.value.trim());
   const amount = parseFloat(amtInput.value);
   const date = document.getElementById('txnDate').value || todayISO();
-  const btn = document.getElementById('txnDoneBtn'); btn.disabled = true; btn.textContent = editTransactionId!== null? 'Updating...' : 'Saving...';
+  const btn = document.getElementById('txnDoneBtn');
+  const isEdit = editTransactionId!== null;
+  const tempId = isEdit ? editTransactionId : 'tmp_'+Date.now();
+  const newRec = { id: tempId, payer: from, receiver: to, amount, date_iso: date, is_received:false, received_date_iso:null, user_id:user.id };
+  // STEP 1: Temporary memory
+  if(isEdit){
+    let idx = transactions.findIndex(t=>String(t.id)===String(editTransactionId));
+    if(idx>=0) transactions[idx] = { ...transactions[idx], payer:from, receiver:to, amount, date_iso:date };
+  }else{
+    addToTempMemory('transactions', tempId, newRec);
+    transactions.push(newRec);
+  }
+  renderTransactions();
+  scrollTableToBottom('transactionTableWrap');
+  fromInput.value = ''; toInput.value = ''; amtInput.value = ''; 
+  updateDateDisplay('txnDate','txnDateText');
+  const savedId = editTransactionId;
+  editTransactionId = null;
+  btn.textContent = 'Done';
+  setTimeout(()=>{ document.getElementById('txnFrom')?.focus(); }, 50);
+  if(isEdit) showBottomMessage("Transaction updated", "success");
+  else showBottomMessage("Transaction added (Temp memory)", "success");
   try {
-    if (editTransactionId!== null) {
-      const { error } = await supabaseClient.from('transactions').update({ payer: from, receiver: to, amount, date_iso: date }).eq('id', editTransactionId).eq('user_id', user.id);
-      if (error) throw error; showBottomMessage("Transaction updated", "success"); editTransactionId = null;
+    if (isEdit) {
+      const { error } = await supabaseClient.from('transactions').update({ payer: from, receiver: to, amount, date_iso: date }).eq('id', savedId).eq('user_id', user.id);
+      if (error) throw error;
     } else {
-      const { error } = await supabaseClient.from('transactions').insert({ payer: from, receiver: to, amount, date_iso: date, is_received: false, received_date_iso: null, user_id: user.id });
-      if (error) throw error; showBottomMessage("Transaction added", "success");
+      const { data, error } = await supabaseClient.from('transactions').insert({ payer: from, receiver: to, amount, date_iso: date, is_received: false, received_date_iso: null, user_id: user.id }).select().single();
+      if (error) throw error;
+      if(data){
+        let idx = transactions.findIndex(t=>String(t.id)===String(tempId));
+        if(idx>=0) transactions[idx]=data;
+        clearFromTempMemory('transactions', tempId);
+        showBottomMessage(`Saved to Supabase - Memory cleared`, "success");
+      }
     }
-    fromInput.value = ''; toInput.value = ''; amtInput.value = ''; 
-    document.getElementById('txnDate').value = todayISO();
-    updateDateDisplay('txnDate','txnDateText');
-    await loadTransactions();
-    setTimeout(()=>{ document.getElementById('txnFrom')?.focus(); }, 100);
-  } catch (err) { showBottomMessage(err.message, "error"); } finally { btn.disabled = false; btn.textContent = 'Done'; }
+  } catch (err) { 
+    showBottomMessage(err.message, "error");
+    if(!isEdit){
+      transactions = transactions.filter(t=>String(t.id)!==String(tempId));
+      clearFromTempMemory('transactions', tempId);
+      renderTransactions();
+    }
+  }
 }
 function editTransaction(id){ const item = transactions.find(t => String(t.id) === String(id)); if (!item) return; document.getElementById('txnFrom').value = item.payer; document.getElementById('txnTo').value = item.receiver; document.getElementById('txnAmount').value = item.amount; document.getElementById('txnDate').value = item.date_iso; updateDateDisplay('txnDate', 'txnDateText'); editTransactionId = item.id; document.getElementById('txnDoneBtn').textContent = 'Update'; }
 function deleteTransaction(id){ openDeleteDialog('transaction', id); }
-async function performDeleteTransaction(id){ if (await deleteRow('transactions', id)) { if (String(editTransactionId) === String(id)) { editTransactionId = null; document.getElementById('txnDoneBtn').textContent = 'Done'; } showBottomMessage("Transaction deleted", "success"); await loadTransactions(); } }
+async function performDeleteTransaction(id){
+  // Fast delete - instant UI
+  const idx = transactions.findIndex(t=>String(t.id)===String(id));
+  let backup = null;
+  if(idx>=0){ backup = transactions[idx]; transactions.splice(idx,1); renderTransactions(); }
+  if (String(editTransactionId) === String(id)) { editTransactionId = null; document.getElementById('txnDoneBtn').textContent = 'Done'; }
+  showBottomMessage("Transaction deleted", "success");
+  // Background
+  const ok = await deleteRow('transactions', id);
+  if(!ok && backup){ transactions.splice(idx,0,backup); renderTransactions(); }
+}
 async function toggleReceived(id, isChecked){ const user = await getCurrentUser(); if (!user) return; const { error } = await supabaseClient.from('transactions').update({ is_received: isChecked, received_date_iso: isChecked? todayISO() : null }).eq('id', id).eq('user_id', user.id); if (error) return showBottomMessage(error.message, "error"); await loadTransactions(); }
 
 // ---------- GROUP - UPAD / LEDGER ----------
@@ -644,22 +728,16 @@ var editGroupId = null;
 var pendingAddAmount = { person: null, group: null };
 var expandedGroups = {}; // person_key => true/false for View toggle
 async function loadGroups(){
-  // Try Supabase table group_records, if not exists fallback to localStorage
+  // Only Supabase - no localStorage as per requirement
   try{
     const user = await getCurrentUser();
     if(user){
       const { data, error } = await supabaseClient.from('group_records').select('*').eq('user_id', user.id).order('date_iso', {ascending:true});
       if(!error && data){ groupRecords = data; }
-      else{
-        // Fallback to localStorage
-        let enc = localStorage.getItem('__g_r');
-        if(enc){ groupRecords = JSON.parse(_decData(enc)||"[]"); }
-        else{ groupRecords = []; }
-      }
+      else{ groupRecords = []; }
     }
   }catch(e){
-    let enc = localStorage.getItem('__g_r');
-    if(enc){ try{ groupRecords = JSON.parse(_decData(enc)||"[]"); }catch(_){ groupRecords=[]; } }
+    groupRecords = [];
   }
   fillGroupSelects();
   renderGroups();
@@ -710,11 +788,16 @@ function renderGroups(){
       personSel.innerHTML = htmlOptions;
       if(currentVal && [...personSel.options].some(o=>o.value===currentVal)) personSel.value = currentVal;
     }
-    // Auto-fill Enter Name when Select Name chosen
+    // Auto-fill Enter Name when Select Name chosen - and cursor direct Amount ma
     if(personSel.value !== "Select Name" && personSel.value !== ""){
       let enterNameInput = document.getElementById('grpPerson');
       if(enterNameInput && !editGroupId){
         enterNameInput.value = personSel.value;
+        // Cursor direct Amount field ma redirect karo
+        setTimeout(()=>{
+          let amtInput = document.getElementById('grpAmount');
+          if(amtInput) amtInput.focus();
+        }, 100);
       }
     }
   }
@@ -805,55 +888,53 @@ async function addOrUpdateGroup(){
   if(isGroupSaving) return;
   isGroupSaving = true;
   const user = await getCurrentUser(); if(!user){ isGroupSaving=false; return showBottomMessage("Login nathi","error"); }
-  const person = capitalizeFirstLetter(document.getElementById('grpPerson').value.trim());
-  const amount = parseFloat(document.getElementById('grpAmount').value);
+  const personInput = document.getElementById('grpPerson');
+  const amountInput = document.getElementById('grpAmount');
+  const person = capitalizeFirstLetter(personInput.value.trim());
+  const amount = parseFloat(amountInput.value);
   const date = document.getElementById('grpDate').value || todayISO();
   let grpSel = document.getElementById('grpGroup')?.value || "Upad";
   if(grpSel === NEW_GROUP_LABEL){ isGroupSaving=false; return handleGroupChange(); }
   if(!person){ isGroupSaving=false; return showBottomMessage("Person Name lakho","error"); }
   if(!amount || amount<=0){ isGroupSaving=false; return showBottomMessage("Amount lakho","error"); }
-  const btn = document.getElementById('grpDoneBtn'); btn.disabled=true; btn.textContent='Saving...';
+  const btn = document.getElementById('grpDoneBtn');
+  const isEdit = editGroupId !== null;
+  const tempId = isEdit ? editGroupId : 'tmp_'+Date.now();
+  const newRecLocal = { id: tempId, person_name: person, amount, date_iso: date, group_name: grpSel, user_id: user.id };
+  // STEP 1: Temporary memory - RAM ma j
+  if(isEdit){
+    let idx = groupRecords.findIndex(r=>String(r.id)===String(editGroupId));
+    if(idx>=0) groupRecords[idx] = { ...groupRecords[idx], ...newRecLocal, id: editGroupId };
+  }else{
+    addToTempMemory('groups', tempId, newRecLocal);
+    groupRecords.push(newRecLocal);
+  }
+  renderGroups();
+  scrollTableToBottom('groupTableWrap');
+  personInput.value=''; amountInput.value='';
+  updateDateDisplay('grpDate','grpDateText');
+  const savedId = editGroupId;
+  editGroupId=null;
+  btn.textContent='Done';
+  btn.disabled=false;
+  isGroupSaving=false;
+  setTimeout(()=>{ document.getElementById('grpPerson')?.focus(); }, 50);
+  if(isEdit) showBottomMessage("Group Updated","success");
+  else showBottomMessage(`${person} - ${grpSel} ₹${amount} Added (Temp)`, "success");
+  // STEP 2: Background Supabase, STEP 3: memory clear
   try{
-    if(editGroupId !== null){
-      // Update local first - important for date fix
-      let idx = groupRecords.findIndex(r=>String(r.id)===String(editGroupId));
-      if(idx>=0){
-        groupRecords[idx].person_name=person;
-        groupRecords[idx].amount=amount;
-        groupRecords[idx].date_iso=date;
-        groupRecords[idx].group_name=grpSel;
-      }
-      try{ localStorage.setItem('__g_r', _encData(JSON.stringify(groupRecords))); }catch(_){}
-      // Then try Supabase
-      try{
-        const { error } = await supabaseClient.from('group_records').update({ person_name: person, amount, date_iso: date, group_name: grpSel }).eq('id', editGroupId).eq('user_id', user.id);
-        if(error) throw error;
-      }catch(e){
-        console.log("Supabase group update fallback", e.message);
-      }
-      showBottomMessage("Group Updated","success"); editGroupId=null;
+    if(isEdit){
+      await supabaseClient.from('group_records').update({ person_name: person, amount, date_iso: date, group_name: grpSel }).eq('id', savedId).eq('user_id', user.id);
     }else{
-      let newRec = { id: Date.now().toString(), person_name: person, amount, date_iso: date, group_name: grpSel, user_id: user.id };
-      try{
-        const { data, error } = await supabaseClient.from('group_records').insert({ person_name: person, amount, date_iso: date, group_name: grpSel, user_id: user.id }).select();
-        if(error) throw error;
-        if(data && data[0]) newRec = data[0];
-      }catch(e){
-        // fallback local will be handled below
+      const { data, error } = await supabaseClient.from('group_records').insert({ person_name: person, amount, date_iso: date, group_name: grpSel, user_id: user.id }).select();
+      if(!error && data && data[0]){
+        let idx = groupRecords.findIndex(r=>String(r.id)===String(tempId));
+        if(idx>=0){ groupRecords[idx]=data[0]; }
+        clearFromTempMemory('groups', tempId);
+        showBottomMessage(`Saved to Supabase - Memory cleared`, "success");
       }
-      // Always push to local
-      if(!groupRecords.find(r=>String(r.id)===String(newRec.id))){
-        groupRecords.push(newRec);
-      }
-      try{ localStorage.setItem('__g_r', _encData(JSON.stringify(groupRecords))); }catch(_){}
-      showBottomMessage(`${person} - ${grpSel} ₹${amount} Added`,"success");
     }
-    document.getElementById('grpPerson').value=''; document.getElementById('grpAmount').value=''; document.getElementById('grpDate').value=todayISO(); updateDateDisplay('grpDate','grpDateText');
-    renderGroups();
-    // Focus redirect to Enter Name
-    setTimeout(()=>{ document.getElementById('grpPerson')?.focus(); }, 200);
-  }catch(err){ showBottomMessage(err.message,"error"); }
-  finally{ btn.disabled=false; btn.textContent='Done'; isGroupSaving=false; }
+  }catch(e){ console.log("Supabase group sync error", e.message); }
 }
 function editGroup(id){
   const rec = groupRecords.find(r=>String(r.id)===String(id)); if(!rec) return;
@@ -868,15 +949,18 @@ function editGroup(id){
 }
 function deleteGroup(id){ openDeleteDialog('group', id); }
 async function performDeleteGroup(id){
+  // Fast - instant UI, no localStorage
+  let idx = groupRecords.findIndex(r=>String(r.id)===String(id));
+  let backup = null;
+  if(idx>=0){ backup = groupRecords[idx]; groupRecords.splice(idx,1); }
+  if(String(editGroupId)===String(id)){ editGroupId=null; document.getElementById('grpDoneBtn').textContent='Done'; }
+  renderGroups();
+  showBottomMessage("Group record deleted","success");
+  // Background Supabase only
   try{
     const user = await getCurrentUser();
     if(user){ await supabaseClient.from('group_records').delete().eq('id', id).eq('user_id', user.id); }
-  }catch(e){}
-  groupRecords = groupRecords.filter(r=>String(r.id)!==String(id));
-  try{ localStorage.setItem('__g_r', _encData(JSON.stringify(groupRecords))); }catch(_){}
-  if(String(editGroupId)===String(id)){ editGroupId=null; document.getElementById('grpDoneBtn').textContent='Done'; }
-  showBottomMessage("Group record deleted","success");
-  renderGroups();
+  }catch(e){ if(backup){ groupRecords.splice(idx,0,backup); renderGroups(); } }
 }
 function openAddAmountDialog(person, group){
   pendingAddAmount.person = person; pendingAddAmount.group = group;
@@ -896,16 +980,24 @@ async function confirmAddAmount(){
   const person = pendingAddAmount.person; const group = pendingAddAmount.group;
   if(!person || !group) return;
   const user = await getCurrentUser(); if(!user) return;
-  let newRec = { id: Date.now().toString(), person_name: person, amount, date_iso: todayISO(), group_name: group, user_id: user.id };
-  try{
-    const { data, error } = await supabaseClient.from('group_records').insert({ person_name: person, amount, date_iso: todayISO(), group_name: group, user_id: user.id }).select();
-    if(!error && data && data[0]) newRec = data[0];
-  }catch(e){}
+  const selectedDate = document.getElementById('grpDate')?.value || todayISO();
+  let newRec = { id: 'tmp_'+Date.now().toString(), person_name: person, amount, date_iso: selectedDate, group_name: group, user_id: user.id };
+  // Fast UI - temporary memory
+  addToTempMemory('groups', newRec.id, newRec);
   groupRecords.push(newRec);
-  try{ localStorage.setItem('__g_r', _encData(JSON.stringify(groupRecords))); }catch(_){}
   closeAddAmountDialog();
-  showBottomMessage(`${person} ma ₹${amount} add thaiyu`,"success");
   renderGroups();
+  scrollTableToBottom('groupTableWrap');
+  showBottomMessage(`${person} ma ₹${amount} add thaiyu (Temp)`, "success");
+  // Background Supabase only + clear memory
+  try{
+    const { data, error } = await supabaseClient.from('group_records').insert({ person_name: person, amount, date_iso: selectedDate, group_name: group, user_id: user.id }).select();
+    if(!error && data && data[0]){
+      let idx = groupRecords.findIndex(r=>String(r.id)===String(newRec.id));
+      if(idx>=0){ groupRecords[idx]=data[0]; }
+      clearFromTempMemory('groups', newRec.id);
+    }
+  }catch(e){}
 }
 // Group create/delete dialogs
 function closeNewGroupDialog(){ document.getElementById('newGroupDialog')?.classList.remove('active'); }
