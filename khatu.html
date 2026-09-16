@@ -13,6 +13,68 @@
 .download-option-btn.pdf:hover{background:#b91c1c;}
 .download-option-btn.excel{background:#059669;color:white;}
 .download-option-btn.excel:hover{background:#047857;}
+
+/* === FILTER SCREEN FIX - SPACE REDUCE + BOTTOM NOT CUT === */
+#filterScreen .panel{
+  display:flex;
+  flex-direction:column;
+  height: calc(100vh - 110px) !important;
+  max-height: calc(100vh - 110px) !important;
+  overflow:hidden !important;
+  padding-bottom:10px !important;
+}
+#filterScreen .top-row{
+  margin-top:6px !important;
+  padding-bottom:4px !important;
+  gap:6px !important;
+}
+#filterTableWrap{
+  flex:1 !important;
+  margin-top:8px !important;
+  height:auto !important;
+  min-height:200px !important;
+  max-height:52vh !important;
+  overflow-y:auto !important;
+  border-radius:12px;
+}
+#filterScreen .bottom-row{
+  margin-top:8px !important;
+  padding:8px 0 4px 0 !important;
+  flex-shrink:0 !important;
+  position:sticky !important;
+  bottom:0;
+  background:rgba(204,251,241,0.95);
+  backdrop-filter:blur(4px);
+  z-index:2;
+  border-top:1px solid rgba(0,0,0,0.08);
+}
+
+/* MOBILE FIX */
+@media (max-width: 768px){
+  #filterScreen .panel{
+    height: calc(100vh - 85px) !important;
+    max-height: calc(100vh - 85px) !important;
+    padding:10px !important;
+  }
+  #filterTableWrap{
+    max-height:45vh !important;
+    min-height:180px !important;
+  }
+  #filterScreen .top-row{
+    margin-top:5px !important;
+    gap:5px !important;
+  }
+  #filterScreen .bottom-row{
+    flex-direction:row !important;
+    justify-content:space-between !important;
+    gap:8px !important;
+  }
+  #filterTotalBox{font-size:13px !important;}
+  #filterScreen .pdf-btn{padding:8px 14px !important; font-size:13px !important;}
+}
+@media (max-width: 480px){
+  #filterTableWrap{max-height:38vh !important;}
+}
 </style>
 </head>
 <body>
@@ -160,14 +222,14 @@
     <div class="title-cloud-wrap"><div class="title-cloud" id="filterTitle">Filter Your Data</div></div>
     <div class="panel">
       <div class="top-row"><div class="pill">Select Month & Year</div><div class="select-pill"><select id="filterMonth" onchange="renderFilterResults()"></select></div><div class="select-pill"><select id="filterYear" onchange="renderFilterResults()"></select></div><div class="select-pill" id="filterCategoryWrap2" style="position:relative;"><select id="filterCategory" style="text-align-last:center; -webkit-appearance:none; appearance:none; padding-right:20px;"></select><span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; font-size:12px;">▼</span></div><div class="select-pill" id="filterGroupWrap" style="position:relative; display:none;"><select id="filterGroup" style="text-align-last:center; -webkit-appearance:none; appearance:none; padding-right:20px;"></select><span style="position:absolute; right:12px; top:50%; transform:translateY(-50%); pointer-events:none; font-size:12px;">▼</span></div></div>
-      <div class="top-row" style="margin-top:10px; border-bottom:none; padding-bottom:0; gap:8px; flex-wrap:wrap; justify-content:center;">
-        <div class="teal-pill date-pill" id="filterDateBtn" style="background:#7c3aed; cursor:pointer;" onclick="openDatePicker('filterDate')"><span id="filterDateText">📅 Select Date</span><span>▼</span><input type="date" id="filterDate" onchange="updateFilterDateDisplay(); renderFilterResults()"></div>
-        <button type="button" onclick="clearFilterDate()" style="background:#64748b;color:white;border:none;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:bold;cursor:pointer;">Clear Date</button>
+      <div class="top-row" style="margin-top:6px; border-bottom:none; padding-bottom:2px; gap:6px; flex-wrap:wrap; justify-content:center;">
+        <div class="teal-pill date-pill" id="filterDateBtn" style="background:#7c3aed; cursor:pointer; padding:8px 12px;" onclick="openDatePicker('filterDate')"><span id="filterDateText">📅 Select Date</span><span>▼</span><input type="date" id="filterDate" onchange="updateFilterDateDisplay(); renderFilterResults()"></div>
+        <button type="button" onclick="clearFilterDate()" style="background:#64748b;color:white;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:bold;cursor:pointer;">Clear Date</button>
       </div>
-      <div id="repayFilterRow" class="top-row" style="margin-top:10px;border-bottom:none;padding-bottom:0;display:none;gap:10px;justify-content:center;"><button type="button" id="btnAllRepay" onclick="setRepayFilter('all')" style="background:#f89100;color:white;border:none;border-radius:20px;padding:8px 16px;font-weight:bold;cursor:pointer;">All Data</button><button type="button" id="btnRepayCompleted" onclick="setRepayFilter('completed')" style="background:#059669;color:white;border:none;border-radius:20px;padding:8px 16px;font-weight:bold;cursor:pointer;">Repay Completed</button><button type="button" id="btnRemaining" onclick="setRepayFilter('remaining')" style="background:#dc2626;color:white;border:none;border-radius:20px;padding:8px 16px;font-weight:bold;cursor:pointer;">Remaining</button></div>
-      <div class="top-row" style="margin-top:12px;border-bottom:none;padding-bottom:0;display:flex;align-items:center;gap:10px;"><div class="pill" style="background:#0f766e;color:white;flex-shrink:0;">Search</div><input type="text" id="filterSearch" class="teal-pill" placeholder="Search your Record" oninput="renderFilterResults()" style="flex:1;text-align:center;background:#115e59;color:white;"><button type="button" onclick="document.getElementById('filterSearch').value=''; renderFilterResults();" style="background:#5397f6;color:white;border:none;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:bold;cursor:pointer;flex-shrink:0;">Clear</button></div>
-      <div class="table-wrap" id="filterTableWrap" style="flex:1;margin-top:15px;height:330px;overflow-y:auto;"><div class="empty-note">Type something to search...</div></div>
-      <div class="bottom-row" style="margin-top:12px;flex-shrink:0;">
+      <div id="repayFilterRow" class="top-row" style="margin-top:6px;border-bottom:none;padding-bottom:2px;display:none;gap:8px;justify-content:center;"><button type="button" id="btnAllRepay" onclick="setRepayFilter('all')" style="background:#f89100;color:white;border:none;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;">All Data</button><button type="button" id="btnRepayCompleted" onclick="setRepayFilter('completed')" style="background:#059669;color:white;border:none;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;">Repay Completed</button><button type="button" id="btnRemaining" onclick="setRepayFilter('remaining')" style="background:#dc2626;color:white;border:none;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;">Remaining</button></div>
+      <div class="top-row" style="margin-top:6px;border-bottom:none;padding-bottom:2px;display:flex;align-items:center;gap:8px;"><div class="pill" style="background:#0f766e;color:white;flex-shrink:0; padding:7px 10px; font-size:12px;">Search</div><input type="text" id="filterSearch" class="teal-pill" placeholder="Search your Record" oninput="renderFilterResults()" style="flex:1;text-align:center;background:#115e59;color:white; padding:8px;"><button type="button" onclick="document.getElementById('filterSearch').value=''; renderFilterResults();" style="background:#5397f6;color:white;border:none;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:bold;cursor:pointer;flex-shrink:0;">Clear</button></div>
+      <div class="table-wrap" id="filterTableWrap"><div class="empty-note">Type something to search...</div></div>
+      <div class="bottom-row">
         <div class="total-box" id="filterTotalBox">Total : ₹0.00</div>
         <button type="button" class="pdf-btn" onclick="openDownloadDialog('filter')">Download</button>
       </div>
@@ -196,6 +258,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <div id="bottomMsgBar" class="bottom-msg-bar"></div>
-<script src="khatu.js?v=8.1"></script>
+<script src="khatu.js?v=8.5-filter-fix"></script>
 </body>
 </html>
