@@ -102,36 +102,89 @@ function _saveHiddenCategories(arr){
   }catch(e){}
 }
 
-// ---------- GROUP HELPERS - SAME AS CATEGORY ----------
-const DEFAULT_GROUPS = ["Upad", "Jama", "Others"];
+// ---------- GROUP HELPERS ----------
+const DEFAULT_GROUPS = ["Others", "Upad", "Jama"];
 const NEW_GROUP_LABEL = "➕ New Group...";
-function getAllGroupsFiltered(){
-  let custom = []; let hidden = [];
+var customGroups = [];
+
+function loadCustomGroupsLocal(){
   try{
-    let encCustom = localStorage.getItem('__g_a');
-    let encHidden = localStorage.getItem('__g_h');
-    if(encCustom){ custom = JSON.parse(_decData(encCustom)||"[]"); }
-    if(encHidden){ hidden = JSON.parse(_decData(encHidden)||"[]"); }
-  }catch(e){ custom=[]; hidden=[]; }
-  let all = [...DEFAULT_GROUPS, ...custom];
-  return all.filter(c => !hidden.includes(c));
+    let enc = localStorage.getItem('__g_a');
+    if(enc){
+      let dec = _decData(enc);
+      let arr = JSON.parse(dec||"[]");
+      if(Array.isArray(arr)){
+        arr.forEach(g=>{
+          if(g && !customGroups.map(c=>c.toLowerCase()).includes(g.toLowerCase())){
+            customGroups.push(g);
+          }
+        });
+      }
+    }
+  }catch(e){}
 }
-function _saveCustomGroups(arr){
-  try{ localStorage.setItem('__g_a', _encData(JSON.stringify(arr))); }catch(e){}
+function saveCustomGroupsLocal(){
+  try{
+    localStorage.setItem('__g_a', _encData(JSON.stringify(customGroups)));
+  }catch(e){}
 }
-function _saveHiddenGroups(arr){
-  try{ localStorage.setItem('__g_h', _encData(JSON.stringify(arr))); }catch(e){}
+loadCustomGroupsLocal();
+
+async function loadCustomGroupsFromSupabase(){
+  try{
+    const user = await getCurrentUser();
+    if(!user) return;
+    const { data, error } = await supabaseClient.from('groups').select('group_name').eq('user_id', user.id);
+    if(!error && data && data.length>0){
+      let fromDb = data.map(d=>d.group_name).filter(Boolean);
+      fromDb.forEach(g=>{
+        if(g && g.trim() && !customGroups.map(c=>c.toLowerCase()).includes(g.toLowerCase().trim())){
+          customGroups.push(g.trim());
+        }
+      });
+      saveCustomGroupsLocal();
+    } else if(error){
+      console.log("Groups table not found, using local + records:", error.message);
+    }
+  }catch(e){
+    console.log("loadCustomGroups error:", e.message);
+  }
 }
+
+function getAllGroupsFiltered(){
+  let all = [...DEFAULT_GROUPS];
+  customGroups.forEach(g=>{
+    if(g && g.trim() && !all.map(a=>a.toLowerCase()).includes(g.toLowerCase().trim())){
+      all.push(g.trim());
+    }
+  });
+  try{
+    if(groupRecords && groupRecords.length>0){
+      let recordGroups = [...new Set(groupRecords.map(r=> (r.group_name||'').trim()).filter(Boolean))];
+      recordGroups.forEach(rg=>{
+        if(rg && rg !== NEW_GROUP_LABEL && !all.map(a=>a.toLowerCase()).includes(rg.toLowerCase())){
+          all.push(rg);
+        }
+      });
+    }
+  }catch(e){}
+  return [...new Set(all.filter(Boolean))];
+}
+
 function fillGroupSelects(){
   let groups = getAllGroupsFiltered();
   let selGrp = document.getElementById('grpGroup');
   if(selGrp){
-    let prev = selGrp.value || "Upad";
+    let prev = selGrp.value;
+    if(!prev || prev === NEW_GROUP_LABEL || prev.trim()==='') prev = "Others";
     selGrp.innerHTML = "";
     selGrp.add(new Option(NEW_GROUP_LABEL, NEW_GROUP_LABEL));
     groups.forEach(g => selGrp.add(new Option(g, g)));
     if([...groups, NEW_GROUP_LABEL].includes(prev)) selGrp.value = prev;
-    else selGrp.value = groups[0] || "Upad";
+    else if(groups.includes("Others")) selGrp.value = "Others";
+    else if(groups.length>0) selGrp.value = groups[0];
+    let grpNameEl = document.getElementById('grpGroupName');
+    if(grpNameEl) grpNameEl.textContent = selGrp.value !== NEW_GROUP_LABEL ? selGrp.value : "Others";
   }
 }
 
@@ -290,7 +343,7 @@ async function confirmDeleteCategory(){
   showBottomMessage(`"${catToDelete}" Category and Records are Deleted.`, "success");
 }
 
-// ---------- DOWNLOAD DIALOG - NEW FEATURE ----------
+// ---------- DOWNLOAD DIALOG ----------
 function openDownloadDialog(type){
   pendingDownloadType = type;
   document.getElementById('downloadDialog')?.classList.add('active');
@@ -326,20 +379,16 @@ function showScreen(name) {
   screens.forEach(id => document.getElementById(id)?.classList.remove('active'));
   document.getElementById(name + 'Screen')?.classList.add('active');
   document.querySelectorAll('.user-menu').forEach(menu => menu.classList.remove('active'));
-  // When entering grouping screen, by default set to Others (as requested) and Select Name default
   if(name === 'group'){
     let grpSel = document.getElementById('grpGroup');
     if(grpSel){
-      // Default to Others if available, else first group
       let groups = getAllGroupsFiltered();
       if(groups.includes('Others')) grpSel.value = 'Others';
       else if(groups.length>0) grpSel.value = groups[0];
     }
     let personFilter = document.getElementById('grpPersonFilter');
     if(personFilter) personFilter.value = 'Select Name';
-    // Reset expanded
     expandedGroups = {};
-    // Will render with today's data
     renderGroups();
   }
 }
@@ -350,7 +399,7 @@ function toggleUserMenu(menuId) {
   menu.classList.toggle('active');
 }
 async function openProfile(fromScreen) {
-  if (fromScreen!== 'expense' && fromScreen!== 'transaction') return;
+  if (fromScreen!== 'expense' && fromScreen!== 'transaction' && fromScreen !== 'group') return;
   profileDashboardBackScreen = fromScreen;
   document.querySelectorAll('.user-menu').forEach(menu => menu.classList.remove('active'));
   const { data } = await supabaseClient.auth.getUser();
@@ -358,7 +407,7 @@ async function openProfile(fromScreen) {
   showScreen('profile');
 }
 async function openDashboard(fromScreen) {
-  if (fromScreen!== 'expense' && fromScreen!== 'transaction') return;
+  if (fromScreen!== 'expense' && fromScreen!== 'transaction' && fromScreen !== 'group') return;
   profileDashboardBackScreen = fromScreen;
   showScreen('dashboard');
   await loadDashboard();
@@ -408,9 +457,7 @@ async function checkAuth() {
   const hash = window.location.hash;
   if (hash && hash.includes('type=recovery')) { await checkRecoverySession(); return; }
   showScreen('login');
-  // Encrypted localStorage thi Email/Password auto-fill - pela karta jem hatu tem
   try{
-    // Juna plain keys delete karo
     localStorage.removeItem('savedEmail');
     localStorage.removeItem('savedPassword');
     localStorage.removeItem('customCategories');
@@ -506,14 +553,12 @@ async function addOrUpdateExpense() {
   }
   name = capitalizeFirstLetter(name);
   const btn = document.getElementById('expDoneBtn');
-  // FAST PATH - Temporary Memory Logic
   const isEdit = editExpenseId !== null;
   const tempId = isEdit ? editExpenseId : 'tmp_'+Date.now();
   const newRecord = { id: tempId, name, amount, date_iso: date, category: catSel, user_id: user.id };
-  // STEP 1: Temporary memory ma save karo - RAM ma j, localStorage ma nahi
   if(!isEdit){
     addToTempMemory('expenses', tempId, newRecord);
-    expenses.push(newRecord); // Main list ma pan tarat dekhai jase
+    expenses.push(newRecord);
   }else{
     let idx = expenses.findIndex(e=>String(e.id)===String(editExpenseId));
     if(idx>=0) expenses[idx] = { ...expenses[idx], ...newRecord, id: editExpenseId };
@@ -533,7 +578,6 @@ async function addOrUpdateExpense() {
   }, 50);
   if(isEdit) showBottomMessage("Updated in "+catSel, "success");
   else showBottomMessage(`Added in ${catSel} (Temp memory)`, "success");
-  // STEP 2: Background ma Supabase ma save karo
   try {
     if (isEdit) {
       const { error } = await supabaseClient.from('expenses').update({ name, amount, date_iso: date, category: catSel }).eq('id', savedEditId).eq('user_id', user.id);
@@ -543,8 +587,7 @@ async function addOrUpdateExpense() {
       if(error) throw error;
       if(data){
         let idx = expenses.findIndex(e=>String(e.id)===String(tempId));
-        if(idx>=0) expenses[idx] = data; // Real ID thi replace
-        // STEP 3: Supabase ma save thai gayu etle temporary memory clear
+        if(idx>=0) expenses[idx] = data;
         clearFromTempMemory('expenses', tempId);
         showBottomMessage(`Saved to Supabase - Memory cleared`, "success");
       }
@@ -571,7 +614,6 @@ function editExpense(id) {
 }
 function deleteExpense(id) { openDeleteDialog('expense', id); }
 async function performDeleteExpense(id) {
-  // Fast delete
   let idx = expenses.findIndex(e=>String(e.id)===String(id));
   let backup = null;
   if(idx>=0){ backup = expenses[idx]; expenses.splice(idx,1); renderExpenses(); }
@@ -594,11 +636,9 @@ function handleExpenseCategoryChange(){
   let phWrap = ph;
   let amountInput = document.getElementById('expAmount');
   if(sel.value === 'Others' || sel.value === 'All Categories'){
-    // Others ma Name + Amount banne
     if(phWrap){ phWrap.style.display = ''; phWrap.required = true; phWrap.placeholder = "Expense Name"; }
     if(amountInput){ amountInput.placeholder = "Enter Amount"; }
   }else{
-    // Biji category ma direct Amount - Name hide
     if(phWrap){ 
       phWrap.style.display = 'none'; 
       phWrap.required = false; 
@@ -614,14 +654,10 @@ function handleExpenseCategoryChange(){
 }
 
 function renderExpenses() {
-  // Main screen ma selected date no data dekhadvo - default aaj, date badlo to badleli date no data
-  const selectedDate = document.getElementById('expDate')?.value || todayISO();
-  let filtered = expenses.filter(e => {
-    return e.date_iso === selectedDate;
-  });
+  let filtered = [...expenses].sort((a,b)=> new Date(a.date_iso) - new Date(b.date_iso));
   const wrap = document.getElementById('expenseTableWrap');
   if (filtered.length === 0) {
-    wrap.innerHTML = `<div class="empty-note">No expense for ${formatDate(selectedDate)}. Add new or check Filter.</div>`;
+    wrap.innerHTML = `<div class="empty-note">No expenses found. Add new record.</div>`;
   } else {
     const rows = filtered.map(e => {
       const parsed = parseExpenseName(e.name);
@@ -641,15 +677,11 @@ function renderExpenses() {
 // ---------- TRANSACTION ----------
 async function loadTransactions() { transactions = await loadTable('transactions'); renderTransactions(); }
 function renderTransactions() {
-  // Main screen ma selected date no data
-  const selectedDate = document.getElementById('txnDate')?.value || todayISO();
-  const filtered = transactions.filter(t => { 
-    return t.date_iso === selectedDate;
-  });
+  const filtered = [...transactions].sort((a,b)=> new Date(a.date_iso) - new Date(b.date_iso));
   const wrap = document.getElementById('transactionTableWrap');
-  if (filtered.length === 0) { wrap.innerHTML = `<div class="empty-note">No transactions for ${formatDate(selectedDate)}. Add new or check Filter.</div>`; }
+  if (filtered.length === 0) { wrap.innerHTML = `<div class="empty-note">No transactions found. Add new record.</div>`; }
   else {
-    wrap.innerHTML = `<table class="entries"><thead><tr><th class="col-date">Tarikh</th><th class="col-txn-tofrom">Payer</th><th class="col-txn-tofrom">Receiver</th><th class="col-txn-amt">Paisa</th><th class="col-date">Repay (✓)</th><th class="col-date">Repay Date</th><th class="col-date">Gap</th><th class="col-action">Action</th></tr></thead><tbody>${filtered.map(t => `<tr><td class="col-date">${formatDate(t.date_iso)}</td><td class="col-txn-tofrom">${escapeHtml(t.payer)}</td><td class="col-txn-tofrom">${escapeHtml(t.receiver)}</td><td class="col-txn-amt">₹${Number(t.amount).toFixed(2)}</td><td class="col-date"><input type="checkbox" class="custom-checkbox" ${t.is_received? 'checked' : ''} onchange="toggleReceived('${jsAttr(t.id)}', this.checked)"></td><td class="col-date">${t.received_date_iso? formatDate(t.received_date_iso) : '-'}</td><td class="col-date">${calculateDaysDiff(t.date_iso, t.received_date_iso)}</td><td class="col-action"><div class="action-btns"><button class="edit-btn" onclick="editTransaction('${jsAttr(t.id)}')">Edit</button><button class="del-btn" onclick="deleteTransaction('${jsAttr(t.id)}')">Delete</button></div></td></tr>`).join('')}</tbody></table>`;
+    wrap.innerHTML = `<table class="entries"><thead><tr><th class="col-date">Date</th><th class="col-txn-tofrom">Payer</th><th class="col-txn-tofrom">Receiver</th><th class="col-txn-amt">Amount</th><th class="col-date">Repay (✓)</th><th class="col-date">Repay Date</th><th class="col-date">Gap</th><th class="col-action">Action</th></tr></thead><tbody>${filtered.map(t => `<tr><td class="col-date">${formatDate(t.date_iso)}</td><td class="col-txn-tofrom">${escapeHtml(t.payer)}</td><td class="col-txn-tofrom">${escapeHtml(t.receiver)}</td><td class="col-txn-amt">₹${Number(t.amount).toFixed(2)}</td><td class="col-date"><input type="checkbox" class="custom-checkbox" ${t.is_received? 'checked' : ''} onchange="toggleReceived('${jsAttr(t.id)}', this.checked)"></td><td class="col-date">${t.received_date_iso? formatDate(t.received_date_iso) : '-'}</td><td class="col-date">${calculateDaysDiff(t.date_iso, t.received_date_iso)}</td><td class="col-action"><div class="action-btns"><button class="edit-btn" onclick="editTransaction('${jsAttr(t.id)}')">Edit</button><button class="del-btn" onclick="deleteTransaction('${jsAttr(t.id)}')">Delete</button></div></td></tr>`).join('')}</tbody></table>`;
   }
   document.getElementById('txnTotal').textContent = filtered.reduce((s, t) => s + Number(t.amount), 0).toFixed(2);
   scrollTableToBottom('transactionTableWrap');
@@ -666,7 +698,6 @@ async function addOrUpdateTransaction(){
   const isEdit = editTransactionId!== null;
   const tempId = isEdit ? editTransactionId : 'tmp_'+Date.now();
   const newRec = { id: tempId, payer: from, receiver: to, amount, date_iso: date, is_received:false, received_date_iso:null, user_id:user.id };
-  // STEP 1: Temporary memory
   if(isEdit){
     let idx = transactions.findIndex(t=>String(t.id)===String(editTransactionId));
     if(idx>=0) transactions[idx] = { ...transactions[idx], payer:from, receiver:to, amount, date_iso:date };
@@ -710,38 +741,63 @@ async function addOrUpdateTransaction(){
 function editTransaction(id){ const item = transactions.find(t => String(t.id) === String(id)); if (!item) return; document.getElementById('txnFrom').value = item.payer; document.getElementById('txnTo').value = item.receiver; document.getElementById('txnAmount').value = item.amount; document.getElementById('txnDate').value = item.date_iso; updateDateDisplay('txnDate', 'txnDateText'); editTransactionId = item.id; document.getElementById('txnDoneBtn').textContent = 'Update'; }
 function deleteTransaction(id){ openDeleteDialog('transaction', id); }
 async function performDeleteTransaction(id){
-  // Fast delete - instant UI
   const idx = transactions.findIndex(t=>String(t.id)===String(id));
   let backup = null;
   if(idx>=0){ backup = transactions[idx]; transactions.splice(idx,1); renderTransactions(); }
   if (String(editTransactionId) === String(id)) { editTransactionId = null; document.getElementById('txnDoneBtn').textContent = 'Done'; }
   showBottomMessage("Transaction deleted", "success");
-  // Background
   const ok = await deleteRow('transactions', id);
   if(!ok && backup){ transactions.splice(idx,0,backup); renderTransactions(); }
 }
 async function toggleReceived(id, isChecked){ const user = await getCurrentUser(); if (!user) return; const { error } = await supabaseClient.from('transactions').update({ is_received: isChecked, received_date_iso: isChecked? todayISO() : null }).eq('id', id).eq('user_id', user.id); if (error) return showBottomMessage(error.message, "error"); await loadTransactions(); }
 
-// ---------- GROUP - UPAD / LEDGER ----------
+// ---------- GROUP - UPAD / LEDGER  (REPAIRED - NO LOCALSTORAGE FOR RECORDS) ----------
 var groupRecords = [];
 var editGroupId = null;
 var pendingAddAmount = { person: null, group: null };
-var expandedGroups = {}; // person_key => true/false for View toggle
+var expandedGroups = {};
+
 async function loadGroups(){
-  // Only Supabase - no localStorage as per requirement
+  // PURE SUPABASE + TEMP MEMORY (NO localStorage for records)
   try{
     const user = await getCurrentUser();
-    if(user){
-      const { data, error } = await supabaseClient.from('group_records').select('*').eq('user_id', user.id).order('date_iso', {ascending:true});
-      if(!error && data){ groupRecords = data; }
-      else{ groupRecords = []; }
+    if(!user){
+      groupRecords = [];
+      renderGroups();
+      return;
+    }
+
+    await loadCustomGroupsFromSupabase();
+
+    // Keep any pending temp records
+    let tempRecs = groupRecords.filter(r => String(r.id).startsWith('tmp_'));
+
+    const { data, error } = await supabaseClient
+      .from('group_records')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('date_iso', {ascending:true});
+
+    if(!error && data !== null){
+      groupRecords = data || [];
+      // Re-add any still-pending temp records
+      tempRecs.forEach(tr=>{
+        if(!groupRecords.some(gr => String(gr.id) === String(tr.id))){
+          groupRecords.push(tr);
+        }
+      });
+    } else if(error){
+      console.log("loadGroups error:", error.message);
+      groupRecords = tempRecs;
     }
   }catch(e){
-    groupRecords = [];
+    console.log("loadGroups exception:", e.message);
   }
+
   fillGroupSelects();
   renderGroups();
 }
+
 function handleGroupChange(){
   let sel = document.getElementById('grpGroup');
   if(!sel) return;
@@ -757,43 +813,44 @@ function handleGroupChange(){
   if(personInput) personInput.placeholder = "Enter Name";
   if(amtInput) amtInput.placeholder = "Amount";
   document.getElementById('grpGroupName').textContent = grp;
-  // Reset person filter when group changes
   let pf = document.getElementById('grpPersonFilter');
   if(pf) pf.value = "Select Name";
-  // Clear expanded
   expandedGroups = {};
   renderGroups();
 }
+
 function toggleGroupView(personKey){
   expandedGroups[personKey] = !expandedGroups[personKey];
   renderGroups();
 }
+
 function renderGroups(){
   const wrap = document.getElementById('groupTableWrap');
   if(!wrap) return;
-  const grpFilter = document.getElementById('grpGroup')?.value || "Upad";
+  const grpFilter = document.getElementById('grpGroup')?.value || "Others";
   const search = (document.getElementById('grpSearch')?.value || "").trim().toLowerCase();
   const personFilter = document.getElementById('grpPersonFilter')?.value || "Select Name";
-  // First get all persons for current group to fill Select Name dropdown (today's data pan but dropdown ma badha dekhadvo for selection)
+
   let allForGroup = groupRecords.filter(g=> g.group_name === grpFilter);
   let uniquePersons = [...new Set(allForGroup.map(g=>g.person_name))].sort();
-  // Fill dropdown if needed
+
   let personSel = document.getElementById('grpPersonFilter');
   if(personSel){
     let currentVal = personSel.value;
     let htmlOptions = `<option value="Select Name">Select Name</option>`;
     uniquePersons.forEach(p=>{ htmlOptions += `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`; });
-    // Only rebuild if changed to avoid losing focus
     if(personSel.options.length !== uniquePersons.length+1 || personSel.innerHTML !== htmlOptions){
       personSel.innerHTML = htmlOptions;
-      if(currentVal && [...personSel.options].some(o=>o.value===currentVal)) personSel.value = currentVal;
+      if(currentVal && currentVal !== "Select Name" && uniquePersons.includes(currentVal)){
+        personSel.value = currentVal;
+      } else {
+        personSel.value = "Select Name";
+      }
     }
-    // Auto-fill Enter Name when Select Name chosen - and cursor direct Amount ma
     if(personSel.value !== "Select Name" && personSel.value !== ""){
       let enterNameInput = document.getElementById('grpPerson');
       if(enterNameInput && !editGroupId){
         enterNameInput.value = personSel.value;
-        // Cursor direct Amount field ma redirect karo
         setTimeout(()=>{
           let amtInput = document.getElementById('grpAmount');
           if(amtInput) amtInput.focus();
@@ -802,15 +859,15 @@ function renderGroups(){
     }
   }
 
-  const selectedDate = document.getElementById('grpDate')?.value || todayISO();
   let filtered = groupRecords.filter(g=>{
     if(grpFilter !== NEW_GROUP_LABEL && g.group_name !== grpFilter) return false;
-    if(g.date_iso !== selectedDate) return false; // Selected date no data - aaj default, badlo to badleli date no data
     if(personFilter !== "Select Name" && personFilter !== "" && g.person_name !== personFilter) return false;
     if(search && !(g.person_name||'').toLowerCase().includes(search)) return false;
     return true;
   });
-  // Group by person_name + group_name
+
+  filtered.sort((a,b)=> new Date(a.date_iso) - new Date(b.date_iso));
+
   let grouped = {};
   filtered.forEach(rec=>{
     let key = rec.person_name.toLowerCase() + "|" + rec.group_name;
@@ -818,13 +875,16 @@ function renderGroups(){
     grouped[key].records.push(rec);
   });
   let personKeys = Object.keys(grouped).sort();
+
   if(personKeys.length===0){
     wrap.innerHTML = `<div class="empty-note">No ${grpFilter} records. ${personFilter!=='Select Name'?personFilter:search||'all'}</div>`;
     document.getElementById('grpTotal').textContent = "0.00";
     return;
   }
+
   let html = `<table class="entries"><thead><tr><th style="text-align:center;">Date</th><th style="text-align:center;">Name</th><th style="text-align:center;">Action</th></tr></thead><tbody>`;
   let total = 0;
+
   personKeys.forEach(key=>{
     let g = grouped[key];
     g.records.sort((a,b)=> new Date(a.date_iso) - new Date(b.date_iso));
@@ -832,6 +892,7 @@ function renderGroups(){
     total += personTotal;
     let firstDate = g.records[0]?.date_iso ? formatDate(g.records[0].date_iso) : "-";
     let isExpanded = !!expandedGroups[key];
+
     html += `<tr style="background:#e0f2fe; border-top:2px solid #0284c7;">
       <td style="text-align:center; font-weight:600;">${firstDate}</td>
       <td style="text-align:center; font-weight:800; font-size:15px;">${escapeHtml(g.person)}</td>
@@ -844,8 +905,8 @@ function renderGroups(){
         </div>
       </td>
     </tr>`;
+
     if(isExpanded){
-      // Show all records for this person
       g.records.forEach((rec)=>{
         html += `<tr style="background:#f8fafc;">
           <td style="text-align:center; color:#475569; font-size:13px;">${formatDate(rec.date_iso)}</td>
@@ -861,47 +922,54 @@ function renderGroups(){
       html += `<tr style="background:#fef3c7;"><td colspan="3" style="text-align:center; font-weight:800; padding:8px;">Total ${escapeHtml(g.person)} = ₹${personTotal.toFixed(2)}</td></tr>`;
     }
   });
+
   html += `</tbody></table>`;
   wrap.innerHTML = html;
   document.getElementById('grpTotal').textContent = total.toFixed(2);
   document.getElementById('grpGroupName').textContent = grpFilter;
   scrollTableToBottom('groupTableWrap');
 }
+
 function editGroupFirst(personKey){
-  // Edit first record of person as main
-  let parts = personKey.split('|');
-  let personName = parts[0];
-  // Find first record matching personKey
   let rec = groupRecords.find(r=> (r.person_name.toLowerCase()+"|"+r.group_name)===personKey);
   if(rec) editGroup(rec.id);
 }
+
 function deleteGroupPerson(personKey){
-  // Delete all records for this person+group
   if(!confirm(`Delete all records for ${personKey.split('|')[0]}?`)) return;
   let toDelete = groupRecords.filter(r=> (r.person_name.toLowerCase()+"|"+r.group_name)===personKey);
   toDelete.forEach(r=>{
     performDeleteGroup(r.id);
   });
 }
+
 var isGroupSaving = false;
+
 async function addOrUpdateGroup(){
   if(isGroupSaving) return;
   isGroupSaving = true;
-  const user = await getCurrentUser(); if(!user){ isGroupSaving=false; return showBottomMessage("Login nathi","error"); }
+
+  const user = await getCurrentUser();
+  if(!user){ isGroupSaving=false; return showBottomMessage("Please login first","error"); }
+
   const personInput = document.getElementById('grpPerson');
   const amountInput = document.getElementById('grpAmount');
   const person = capitalizeFirstLetter(personInput.value.trim());
   const amount = parseFloat(amountInput.value);
   const date = document.getElementById('grpDate').value || todayISO();
   let grpSel = document.getElementById('grpGroup')?.value || "Upad";
+
   if(grpSel === NEW_GROUP_LABEL){ isGroupSaving=false; return handleGroupChange(); }
-  if(!person){ isGroupSaving=false; return showBottomMessage("Person Name lakho","error"); }
-  if(!amount || amount<=0){ isGroupSaving=false; return showBottomMessage("Amount lakho","error"); }
+  if(!person){ isGroupSaving=false; return showBottomMessage("Please enter person name","error"); }
+  if(!amount || amount<=0){ isGroupSaving=false; return showBottomMessage("Please enter amount","error"); }
+
   const btn = document.getElementById('grpDoneBtn');
   const isEdit = editGroupId !== null;
   const tempId = isEdit ? editGroupId : 'tmp_'+Date.now();
   const newRecLocal = { id: tempId, person_name: person, amount, date_iso: date, group_name: grpSel, user_id: user.id };
-  // STEP 1: Temporary memory - RAM ma j
+  const currentGroupBefore = grpSel;
+
+  // STEP 1: Instant UI (Temp Memory)
   if(isEdit){
     let idx = groupRecords.findIndex(r=>String(r.id)===String(editGroupId));
     if(idx>=0) groupRecords[idx] = { ...groupRecords[idx], ...newRecLocal, id: editGroupId };
@@ -909,35 +977,68 @@ async function addOrUpdateGroup(){
     addToTempMemory('groups', tempId, newRecLocal);
     groupRecords.push(newRecLocal);
   }
+
+  // Clear form
+  personInput.value='';
+  amountInput.value='';
+  updateDateDisplay('grpDate','grpDateText');
+
+  let grpGroupSel = document.getElementById('grpGroup');
+  if(grpGroupSel) grpGroupSel.value = currentGroupBefore;
+
+  let personFilterSel = document.getElementById('grpPersonFilter');
+  if(personFilterSel && !isEdit){ 
+    personFilterSel.value = "Select Name"; 
+  }
+
   renderGroups();
   scrollTableToBottom('groupTableWrap');
-  personInput.value=''; amountInput.value='';
-  updateDateDisplay('grpDate','grpDateText');
+
   const savedId = editGroupId;
-  editGroupId=null;
-  btn.textContent='Done';
-  btn.disabled=false;
-  isGroupSaving=false;
+  editGroupId = null;
+  btn.textContent = 'Done';
+  btn.disabled = false;
+  isGroupSaving = false;
+
   setTimeout(()=>{ document.getElementById('grpPerson')?.focus(); }, 50);
-  if(isEdit) showBottomMessage("Group Updated","success");
-  else showBottomMessage(`${person} - ${grpSel} ₹${amount} Added (Temp)`, "success");
-  // STEP 2: Background Supabase, STEP 3: memory clear
+
+  if(isEdit) showBottomMessage("Data updated successfully","success");
+  else showBottomMessage("Data added (Temp memory)","success");
+
+  // STEP 2: Background Supabase
   try{
     if(isEdit){
-      await supabaseClient.from('group_records').update({ person_name: person, amount, date_iso: date, group_name: grpSel }).eq('id', savedId).eq('user_id', user.id);
+      const { error } = await supabaseClient.from('group_records')
+        .update({ person_name: person, amount, date_iso: date, group_name: currentGroupBefore })
+        .eq('id', savedId)
+        .eq('user_id', user.id);
+      if(error) throw error;
     }else{
-      const { data, error } = await supabaseClient.from('group_records').insert({ person_name: person, amount, date_iso: date, group_name: grpSel, user_id: user.id }).select();
-      if(!error && data && data[0]){
+      const { data, error } = await supabaseClient.from('group_records')
+        .insert({ person_name: person, amount, date_iso: date, group_name: currentGroupBefore, user_id: user.id })
+        .select();
+      if(error) throw error;
+      if(data && data[0]){
         let idx = groupRecords.findIndex(r=>String(r.id)===String(tempId));
-        if(idx>=0){ groupRecords[idx]=data[0]; }
+        if(idx>=0) groupRecords[idx] = data[0];
         clearFromTempMemory('groups', tempId);
-        showBottomMessage(`Saved to Supabase - Memory cleared`, "success");
+        showBottomMessage("Saved to Supabase - Memory cleared","success");
       }
     }
-  }catch(e){ console.log("Supabase group sync error", e.message); }
+  }catch(e){
+    console.log("Supabase group sync error", e.message);
+    showBottomMessage(e.message || "Save failed","error");
+    if(!isEdit){
+      groupRecords = groupRecords.filter(r=>String(r.id)!==String(tempId));
+      clearFromTempMemory('groups', tempId);
+      renderGroups();
+    }
+  }
 }
+
 function editGroup(id){
-  const rec = groupRecords.find(r=>String(r.id)===String(id)); if(!rec) return;
+  const rec = groupRecords.find(r=>String(r.id)===String(id));
+  if(!rec) return;
   document.getElementById('grpPerson').value = rec.person_name;
   document.getElementById('grpAmount').value = rec.amount;
   document.getElementById('grpDate').value = rec.date_iso;
@@ -947,105 +1048,174 @@ function editGroup(id){
   document.getElementById('grpDoneBtn').textContent='Update';
   handleGroupChange();
 }
+
 function deleteGroup(id){ openDeleteDialog('group', id); }
+
 async function performDeleteGroup(id){
-  // Fast - instant UI, no localStorage
   let idx = groupRecords.findIndex(r=>String(r.id)===String(id));
   let backup = null;
-  if(idx>=0){ backup = groupRecords[idx]; groupRecords.splice(idx,1); }
-  if(String(editGroupId)===String(id)){ editGroupId=null; document.getElementById('grpDoneBtn').textContent='Done'; }
+  if(idx>=0){ 
+    backup = groupRecords[idx]; 
+    groupRecords.splice(idx,1); 
+  }
+  if(String(editGroupId)===String(id)){ 
+    editGroupId=null; 
+    document.getElementById('grpDoneBtn').textContent='Done'; 
+  }
   renderGroups();
-  showBottomMessage("Group record deleted","success");
-  // Background Supabase only
+  showBottomMessage("Data deleted successfully","success");
+
   try{
     const user = await getCurrentUser();
-    if(user){ await supabaseClient.from('group_records').delete().eq('id', id).eq('user_id', user.id); }
-  }catch(e){ if(backup){ groupRecords.splice(idx,0,backup); renderGroups(); } }
+    if(user){ 
+      await supabaseClient.from('group_records').delete().eq('id', id).eq('user_id', user.id); 
+    }
+  }catch(e){ 
+    if(backup){ 
+      groupRecords.splice(idx,0,backup); 
+      renderGroups(); 
+    } 
+  }
 }
+
 function openAddAmountDialog(person, group){
-  pendingAddAmount.person = person; pendingAddAmount.group = group;
+  pendingAddAmount.person = person; 
+  pendingAddAmount.group = group;
   document.getElementById('addAmountPerson').textContent = person;
   document.getElementById('addAmountGroup').textContent = group;
   document.getElementById('addAmountInput').value = '';
   document.getElementById('addAmountDialog')?.classList.add('active');
   setTimeout(()=>document.getElementById('addAmountInput').focus(),100);
 }
+
 function closeAddAmountDialog(){
-  pendingAddAmount.person=null; pendingAddAmount.group=null;
+  pendingAddAmount.person=null; 
+  pendingAddAmount.group=null;
   document.getElementById('addAmountDialog')?.classList.remove('active');
 }
+
 async function confirmAddAmount(){
   const amount = parseFloat(document.getElementById('addAmountInput').value);
-  if(!amount || amount<=0) return showBottomMessage("Amount lakho","error");
-  const person = pendingAddAmount.person; const group = pendingAddAmount.group;
+  if(!amount || amount<=0) return showBottomMessage("Please enter amount","error");
+  const person = pendingAddAmount.person; 
+  const group = pendingAddAmount.group;
   if(!person || !group) return;
-  const user = await getCurrentUser(); if(!user) return;
+
+  const user = await getCurrentUser(); 
+  if(!user) return;
+
   const selectedDate = document.getElementById('grpDate')?.value || todayISO();
-  let newRec = { id: 'tmp_'+Date.now().toString(), person_name: person, amount, date_iso: selectedDate, group_name: group, user_id: user.id };
-  // Fast UI - temporary memory
+  let newRec = { 
+    id: 'tmp_'+Date.now().toString(), 
+    person_name: person, 
+    amount, 
+    date_iso: selectedDate, 
+    group_name: group, 
+    user_id: user.id 
+  };
+
   addToTempMemory('groups', newRec.id, newRec);
   groupRecords.push(newRec);
+
   closeAddAmountDialog();
+  let pfSel = document.getElementById('grpPersonFilter');
+  if(pfSel) pfSel.value = "Select Name";
+  let sInput = document.getElementById('grpSearch');
+  if(sInput) sInput.value = '';
   renderGroups();
   scrollTableToBottom('groupTableWrap');
-  showBottomMessage(`${person} ma ₹${amount} add thaiyu (Temp)`, "success");
-  // Background Supabase only + clear memory
+  showBottomMessage("Data added (Temp memory)", "success");
+
   try{
-    const { data, error } = await supabaseClient.from('group_records').insert({ person_name: person, amount, date_iso: selectedDate, group_name: group, user_id: user.id }).select();
+    const { data, error } = await supabaseClient.from('group_records')
+      .insert({ person_name: person, amount, date_iso: selectedDate, group_name: group, user_id: user.id })
+      .select();
     if(!error && data && data[0]){
       let idx = groupRecords.findIndex(r=>String(r.id)===String(newRec.id));
-      if(idx>=0){ groupRecords[idx]=data[0]; }
+      if(idx>=0) groupRecords[idx] = data[0];
       clearFromTempMemory('groups', newRec.id);
+      showBottomMessage("Saved to Supabase - Memory cleared","success");
     }
-  }catch(e){}
+  }catch(e){
+    console.log("confirmAddAmount error", e.message);
+  }
 }
-// Group create/delete dialogs
-function closeNewGroupDialog(){ document.getElementById('newGroupDialog')?.classList.remove('active'); }
-function confirmNewGroup(){
-  let name = document.getElementById('newGroupInput').value.trim();
-  if(!name) return showBottomMessage("Group name lakho","error");
-  name = name.charAt(0).toUpperCase() + name.slice(1);
-  let custom = []; try{ let enc = localStorage.getItem('__g_a'); if(enc) custom = JSON.parse(_decData(enc)||"[]"); }catch(e){}
-  let hidden = []; try{ let enc = localStorage.getItem('__g_h'); if(enc) hidden = JSON.parse(_decData(enc)||"[]"); }catch(e){}
-  if(hidden.includes(name)){
-    hidden = hidden.filter(c=>c!==name);
-    _saveHiddenGroups(hidden);
-    fillGroupSelects();
-    document.getElementById('grpGroup').value = name;
-    closeNewGroupDialog();
-    showBottomMessage(`"${name}" group restore thai gayu`,"success");
-    renderGroups(); return;
+
+// ---------- NEW / DELETE GROUP ----------
+function closeNewGroupDialog(){ 
+  document.getElementById('newGroupDialog')?.classList.remove('active'); 
+}
+
+async function confirmNewGroup(){
+  let raw = document.getElementById('newGroupInput').value.trim();
+  if(!raw) return showBottomMessage("Please enter group name","error");
+  if(raw === "➕ New Group..." || raw.toLowerCase().includes("new group")) {
+    return showBottomMessage("Please enter valid group name","error");
   }
-  if(getAllGroupsFiltered().map(c=>c.toLowerCase()).includes(name.toLowerCase())){
-    showBottomMessage("Group already exists","error"); return;
+
+  let name = raw.charAt(0).toUpperCase() + raw.slice(1);
+  let nameLower = name.toLowerCase().trim();
+
+  let existingGroups = getAllGroupsFiltered();
+  let allLower = existingGroups.map(c => c.toLowerCase().trim());
+
+  if(allLower.includes(nameLower)){
+    showBottomMessage("Group already exists","error");
+    return;
   }
-  custom.push(name);
-  _saveCustomGroups(custom);
+
+  if(!customGroups.map(c=>c.toLowerCase()).includes(nameLower)){
+    customGroups.push(name);
+    saveCustomGroupsLocal();
+  }
+
+  try{
+    const user = await getCurrentUser();
+    if(user){
+      const { error } = await supabaseClient.from('groups').insert({ group_name: name, user_id: user.id });
+      if(error){
+        console.log("Groups table insert (may not exist):", error.message);
+      }
+    }
+  }catch(e){
+    console.log("confirmNewGroup error:", e.message);
+  }
+
   fillGroupSelects();
   document.getElementById('grpGroup').value = name;
   document.getElementById('newGroupDialog')?.classList.remove('active');
   showBottomMessage(`Group "${name}" Created`,"success");
   handleGroupChange();
 }
+
 function openDeleteGroupDialog(){
   let groups = getAllGroupsFiltered();
   let sel = document.getElementById('deleteGroupSelect');
   let listDiv = document.getElementById('customGroupList');
   let boxVal = document.getElementById('customGroupValue');
   if(!sel || !listDiv) return;
+
   sel.innerHTML = "";
   listDiv.innerHTML = "";
   groups.forEach(g=>{
     let opt = document.createElement('div');
     opt.textContent = g;
-    opt.style.padding = "10px"; opt.style.cursor="pointer"; opt.style.borderBottom="1px solid #eee"; opt.style.textAlign="center"; opt.style.fontWeight="600";
+    opt.style.padding = "10px"; 
+    opt.style.cursor="pointer"; 
+    opt.style.borderBottom="1px solid #eee"; 
+    opt.style.textAlign="center"; 
+    opt.style.fontWeight="600";
     opt.onclick = ()=>{ selectCustomGroup(g); };
     listDiv.appendChild(opt);
     sel.add(new Option(g,g));
   });
-  if(groups.length>0){ sel.value = groups[0]; boxVal.textContent = groups[0]; }
+  if(groups.length>0){ 
+    sel.value = groups[0]; 
+    boxVal.textContent = groups[0]; 
+  }
   document.getElementById('deleteGroupDialog')?.classList.add('active');
 }
+
 function selectCustomGroup(val){
   document.getElementById('customGroupValue').textContent = val;
   document.getElementById('deleteGroupSelect').value = val;
@@ -1053,32 +1223,37 @@ function selectCustomGroup(val){
   let box = document.getElementById('customGroupBox');
   if(box){ box.style.background="#a16207"; box.style.color="white"; }
 }
+
 function toggleCustomGroupList(){
   let list = document.getElementById('customGroupList');
   list.style.display = list.style.display==='none'||list.style.display==='' ? 'block' : 'none';
 }
-function closeDeleteGroupDialog(){ document.getElementById('deleteGroupDialog')?.classList.remove('active'); document.getElementById('customGroupList').style.display='none'; }
+
+function closeDeleteGroupDialog(){ 
+  document.getElementById('deleteGroupDialog')?.classList.remove('active'); 
+  document.getElementById('customGroupList').style.display='none'; 
+}
+
 async function confirmDeleteGroup(){
   let grpToDelete = document.getElementById('deleteGroupSelect').value;
   if(!grpToDelete) return;
-  // Delete all records of this group
+
   try{
     const user = await getCurrentUser();
-    if(user){ await supabaseClient.from('group_records').delete().eq('group_name', grpToDelete).eq('user_id', user.id); }
-  }catch(e){}
-  groupRecords = groupRecords.filter(r=>r.group_name !== grpToDelete);
-  try{ localStorage.setItem('__g_r', _encData(JSON.stringify(groupRecords))); }catch(_){}
-  // Move group to hidden
-  let custom = []; try{ let enc = localStorage.getItem('__g_a'); if(enc) custom = JSON.parse(_decData(enc)||"[]"); }catch(e){}
-  if(custom.includes(grpToDelete)){
-    custom = custom.filter(c=>c!==grpToDelete);
-    _saveCustomGroups(custom);
-  }else{
-    let hidden = []; try{ let enc = localStorage.getItem('__g_h'); if(enc) hidden = JSON.parse(_decData(enc)||"[]"); }catch(e){}
-    if(!hidden.includes(grpToDelete)) hidden.push(grpToDelete);
-    _saveHiddenGroups(hidden);
+    if(user){ 
+      await supabaseClient.from('group_records').delete().eq('group_name', grpToDelete).eq('user_id', user.id);
+      await supabaseClient.from('groups').delete().eq('group_name', grpToDelete).eq('user_id', user.id);
+    }
+  }catch(e){ 
+    console.log("Delete group error", e.message); 
   }
-  fillGroupSelects(); renderGroups();
+
+  groupRecords = groupRecords.filter(r => r.group_name !== grpToDelete);
+  customGroups = customGroups.filter(c => c.toLowerCase() !== grpToDelete.toLowerCase().trim());
+  saveCustomGroupsLocal();
+
+  fillGroupSelects(); 
+  renderGroups();
   closeDeleteGroupDialog();
   showBottomMessage(`"${grpToDelete}" Group and Records Deleted`,"success");
 }
@@ -1113,7 +1288,6 @@ function openFilter(fromScreen) {
   fillCategorySelects();
   fillGroupSelectsForFilter();
   document.getElementById('filterSearch').value = '';
-  // Reset date filter to empty by default - shows whole month's all dates
   const dateInp = document.getElementById('filterDate');
   if(dateInp) { dateInp.value = ''; }
   updateFilterDateDisplay();
@@ -1166,9 +1340,8 @@ function renderFilterResults(){
   const wrap = document.getElementById('filterTableWrap');
   const totalBox = document.getElementById('filterTotalBox');
   let filtered = [];
-  // Helper for date filter: if filterDate selected, only that date, else whole month (no date filter)
   function passesDateFilter(date_iso){
-    if(!filterDateVal) return true; // No date selected -> show whole month (all dates of that month)
+    if(!filterDateVal) return true;
     return date_iso === filterDateVal;
   }
   if (filterType === 'expense') {
@@ -1188,7 +1361,6 @@ function renderFilterResults(){
     wrap.innerHTML = `<table class="entries"><thead><tr><th class="col-date">Date</th><th class="col-name">Category</th><th class="col-name">Name</th><th class="col-amount">Amount</th></tr></thead><tbody>${rows}</tbody></table>`;
     totalBox.innerHTML = `Total (${catFilter}) : ₹${filtered.reduce((s,e)=>s+Number(e.amount||0),0).toFixed(2)}`;
   } else if(filterType === 'group'){
-    // Group filter with month/year and group select + date filter
     filtered = groupRecords.filter(g=>{
       const p = parseISODate(g.date_iso);
       if(!p) return false;
@@ -1201,7 +1373,6 @@ function renderFilterResults(){
       return true;
     });
     if (filtered.length === 0) { wrap.innerHTML = `<div class="empty-note">No grouping records.</div>`; totalBox.innerHTML = 'Total : ₹0.00'; return; }
-    // Grouped display like main grouping screen but for filter - person wise
     let grouped = {};
     filtered.forEach(rec=>{
       let key = rec.person_name.toLowerCase() + "|" + rec.group_name;
@@ -1343,11 +1514,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     else renderFilterResults();
   });
   document.getElementById('filterGroup')?.addEventListener('change', ()=>renderFilterResults());
-  // Enter key support for New Category/Group dialogs and Delete dialogs
   document.getElementById('newCategoryInput')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); confirmNewCategory(); } });
   document.getElementById('newGroupInput')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); confirmNewGroup(); } });
   document.getElementById('addAmountInput')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); confirmAddAmount(); } });
-  // Delete Category/Group via Enter when select focused - listen on document for delete dialogs
   document.addEventListener('keydown', (e)=>{
     if(e.key==='Enter'){
       if(document.getElementById('newCategoryDialog')?.classList.contains('active')){ e.preventDefault(); confirmNewCategory(); }
@@ -1359,8 +1528,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
     if (event === 'PASSWORD_RECOVERY') { await checkRecoverySession(); return; }
-    if (event === 'SIGNED_OUT') { expenses = []; transactions = []; currentUserId = null; }
-    if (event === 'SIGNED_IN' && session?.user && session.user.id!== currentUserId) { currentUserId = session.user.id; expenses = []; transactions = []; }
+    if (event === 'SIGNED_OUT') { expenses = []; transactions = []; groupRecords = []; currentUserId = null; }
+    if (event === 'SIGNED_IN' && session?.user && session.user.id!== currentUserId) { currentUserId = session.user.id; expenses = []; transactions = []; groupRecords = []; }
   });
   await checkAuth();
 });
@@ -1378,9 +1547,9 @@ function closeDeleteDialog() { pendingDeleteType = null; pendingDeleteId = null;
 async function confirmDelete() { if (!pendingDeleteType || pendingDeleteId === null) return closeDeleteDialog(); const type = pendingDeleteType, id = pendingDeleteId; closeDeleteDialog(); if (type === 'expense') await performDeleteExpense(id); if (type === 'transaction') await performDeleteTransaction(id); if (type === 'group') await performDeleteGroup(id); }
 function openDeleteAccountDialog() { document.getElementById('deleteAccountDialog')?.classList.add('active'); }
 function closeDeleteAccountDialog() { document.getElementById('deleteAccountDialog')?.classList.remove('active'); }
-async function confirmDeleteAccount() { const user = await getCurrentUser(); if (!user) return closeDeleteAccountDialog(); const deleteBtn = document.querySelector('#deleteAccountDialog .confirm-delete-btn'); if (deleteBtn) { deleteBtn.disabled = true; deleteBtn.textContent = 'Deleting...'; } try { const { error } = await supabaseClient.rpc('delete_own_account'); if (error) throw error; expenses = []; transactions = []; await supabaseClient.auth.signOut(); closeDeleteAccountDialog(); showScreen('login'); showBottomMessage("Account and all data permanently deleted.", "success"); } catch (err) { showBottomMessage("Failed: " + err.message, "error"); if (deleteBtn) { deleteBtn.disabled = false; deleteBtn.textContent = 'Delete'; } } }
+async function confirmDeleteAccount() { const user = await getCurrentUser(); if (!user) return closeDeleteAccountDialog(); const deleteBtn = document.querySelector('#deleteAccountDialog .confirm-delete-btn'); if (deleteBtn) { deleteBtn.disabled = true; deleteBtn.textContent = 'Deleting...'; } try { const { error } = await supabaseClient.rpc('delete_own_account'); if (error) throw error; expenses = []; transactions = []; groupRecords = []; await supabaseClient.auth.signOut(); closeDeleteAccountDialog(); showScreen('login'); showBottomMessage("Account and all data permanently deleted.", "success"); } catch (err) { showBottomMessage("Failed: " + err.message, "error"); if (deleteBtn) { deleteBtn.disabled = false; deleteBtn.textContent = 'Delete'; } } }
 
-// ---------- PDF & EXCEL - IMAGE FORMAT ----------
+// ---------- PDF & EXCEL ----------
 async function downloadExpensePDF() {
   const monthVal = document.getElementById('expMonth')?.value || new Date().getMonth();
   const yearVal = document.getElementById('expYear')?.value || new Date().getFullYear();
@@ -1451,11 +1620,6 @@ function getFilteredExpensesForExport(){
   });
   if(catVal !== 'All Categories' && catVal !== NEW_CAT_LABEL && catVal !== 'all' && catVal !== 'Others'){
     filtered = filtered.filter(e => (e.category||'Others') === catVal);
-  } else if(catVal === 'Others' && monthVal !== 'all' && yearVal !== 'all'){
-    // keep only Others when specific month/year
-    if(document.getElementById('expMonth')?.value !== 'all' || document.getElementById('expYear')?.value !== 'all'){
-      // optional - already filtered
-    }
   }
   return filtered;
 }
@@ -1484,7 +1648,6 @@ function downloadExpenseExcel(){
     XLSX.utils.book_append_sheet(wb, ws, "Daily Expence");
     XLSX.writeFile(wb, `Daily_Expence_${monthLabel}_${yearVal}.xlsx`);
   } else {
-    // fallback CSV
     let csv = "Sr No,Date,Name,Amount,Category\n";
     rows.forEach(r=>{ csv += `${r["Sr No"]},${r.Date},${r.Name.replace(/,/g,' ')},${r.Amount},${r.Category}\n`; });
     const blob = new Blob([csv], {type:'text/csv'});
@@ -1626,7 +1789,6 @@ function downloadFilterPDF(){
   doc.text(displayTitle, pageWidth/2, 22, {align:"center"});
   doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.setTextColor(220, 38, 38);
   let monthYearText = `${monthLabel} ${yearLabel}`.trim(); if(monthVal === 'all' && yearVal === 'all') monthYearText = "Overall";
-  // Add date label
   monthYearText += ` | ${dateLabel}`;
   doc.text(monthYearText, pageWidth/2, 30, {align:"center"});
   doc.setTextColor(0,0,0); doc.setFontSize(12); doc.setFont("helvetica","bold");
@@ -1640,8 +1802,6 @@ function downloadFilterPDF(){
     let body = filtered.map((e, idx)=>[idx+1, formatDate(e.date_iso), String(e.name).substring(0,30), Number(e.amount).toFixed(2)]);
     doc.autoTable({ startY: 56, head: [['Sr No','Date','Name','Amount']], body: body, theme:'grid', styles:{halign:'center', fontSize:10, cellPadding:3, lineColor:[0,0,0], lineWidth:0.2}, headStyles:{fillColor:[15,23,42], textColor:255, fontStyle:'bold', halign:'center'}, columnStyles:{0:{cellWidth:15},1:{cellWidth:35},2:{cellWidth:80},3:{cellWidth:40}}, margin:{left:14,right:14} });
   } else if(filterType === 'group'){
-    // Grouping PDF: group wise -> person wise -> person total -> group total -> grand total
-    // First group by group_name
     let groupWise = {};
     filtered.forEach(rec=>{
       if(!groupWise[rec.group_name]) groupWise[rec.group_name] = [];
@@ -1655,7 +1815,6 @@ function downloadFilterPDF(){
       recs.sort((a,b)=> new Date(a.date_iso) - new Date(b.date_iso));
       let groupTotal = recs.reduce((s,r)=>s+Number(r.amount||0),0);
       grandTotal += groupTotal;
-      // Group header
       if(startY > 250){ doc.addPage(); startY = 15; }
       doc.setFontSize(13); doc.setFont("helvetica","bold"); doc.setFillColor(124,58,237);
       doc.setTextColor(255,255,255);
@@ -1664,7 +1823,6 @@ function downloadFilterPDF(){
       startY += 11;
       doc.setTextColor(0,0,0);
 
-      // Now person wise inside this group
       let personWise = {};
       recs.forEach(r=>{
         let key = r.person_name.toLowerCase();
@@ -1704,7 +1862,6 @@ function downloadFilterPDF(){
           doc.setTextColor(0,0,0);
         }
       });
-      // Group total after all persons in this group
       if(startY > 270){ doc.addPage(); startY = 15; }
       doc.setFontSize(11); doc.setFont("helvetica","bold");
       doc.text(`Group Total ${grpName} = Rs ${groupTotal.toFixed(2)}`, pageWidth/2, startY+6, {align:"center"});
@@ -1783,7 +1940,6 @@ function downloadFilterExcel(){
   if(filterType==='expense'){
     rows = filtered.map((e, idx)=>({"Sr No": idx+1, "Date": formatDate(e.date_iso), "Name": e.name, "Amount": Number(e.amount).toFixed(2), "Category": e.category||'Others'}));
   } else if(filterType==='group'){
-    // Excel format: Group wise -> Person wise with totals
     let groupWise = {};
     filtered.forEach(rec=>{
       if(!groupWise[rec.group_name]) groupWise[rec.group_name] = [];
@@ -1840,7 +1996,6 @@ function downloadFilterExcel(){
   showBottomMessage("Excel Downloaded", "success");
 }
 
-
 async function handleLogin(){ 
   const emailEl = document.getElementById('loginEmail');
   const passEl = document.getElementById('loginPassword');
@@ -1851,14 +2006,12 @@ async function handleLogin(){
   if(passEl) passEl.type = 'password';
   errorEl.textContent = ''; btn.disabled = true; btn.textContent = 'Logging in...'; 
   try { 
-    expenses = []; transactions = []; currentUserId = null; 
+    expenses = []; transactions = []; groupRecords = []; currentUserId = null; 
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password }); 
     if (error) throw error; 
-    // ENCRYPTED localStorage - pela karta jem, pan encrypt kari ne
     try{
       localStorage.setItem('__k_e', _encData(email));
       localStorage.setItem('__k_p', _encData(password));
-      // Juna keys delete
       localStorage.removeItem('savedEmail');
       localStorage.removeItem('savedPassword');
     }catch(e){}
@@ -1876,7 +2029,7 @@ async function handleLogin(){
 }
 async function handleSignup(){ const email = document.getElementById('signupEmail').value.trim(); const username = document.getElementById('signupUsername').value.trim(); const password = document.getElementById('signupPassword').value; const retype = document.getElementById('signupRetype').value; const btn = document.getElementById('signupBtn'); const errorEl = document.getElementById('signupError'); errorEl.textContent = ''; if (password!== retype) return errorEl.textContent = 'Passwords do not match'; if (password.length < 6) return errorEl.textContent = 'Password must be at least 6 characters'; btn.disabled = true; btn.textContent = 'Creating account...'; try { const { error } = await supabaseClient.auth.signUp({ email, password, options: { data: { username } } }); if (error) throw error; showBottomMessage('Account created successfully!', 'success'); document.getElementById('signupForm').reset(); showScreen('login'); } catch (err) { errorEl.textContent = err.message || 'Signup failed'; } finally { btn.disabled = false; btn.textContent = 'Sign Up'; } }
 async function handleForgotPassword(){ const email = document.getElementById('loginEmail').value.trim(); const forgotBtn = document.getElementById('forgotBtn'); const errorEl = document.getElementById('loginError'); if (!email) return showBottomMessage("Please enter email first", "error"); if (isSendingReset) return showBottomMessage("Reset link already sending, please wait...", "error"); const now = Date.now(); if (now - lastResetSentAt < 60000) return showBottomMessage(`Please wait ${Math.ceil((60000 - (now - lastResetSentAt)) / 1000)}s before next reset mail`, "error"); isSendingReset = true; forgotBtn.disabled = true; forgotBtn.textContent = 'Sending...'; errorEl.textContent = ''; try { const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname }); if (error) throw error; lastResetSentAt = Date.now(); localStorage.setItem('lastResetSentAt', lastResetSentAt); showBottomMessage(`Reset link sent to ${email}. Check your mail.`, "success"); } catch (err) { errorEl.textContent = err.message; showBottomMessage(err.message, "error"); } finally { isSendingReset = false; forgotBtn.disabled = false; forgotBtn.textContent = 'Forgot Password?'; } }
-async function handleLogout(){ await supabaseClient.auth.signOut(); showScreen('login'); expenses = []; transactions = []; currentUserId = null; }
+async function handleLogout(){ await supabaseClient.auth.signOut(); showScreen('login'); expenses = []; transactions = []; groupRecords = []; currentUserId = null; }
 
 let selectedRowTimer = null;
 function highlightRow(row){ document.querySelectorAll('table.entries tbody tr.selected-row').forEach(r => { r.classList.remove('selected-row'); }); row.classList.add('selected-row'); if (selectedRowTimer) clearTimeout(selectedRowTimer); selectedRowTimer = setTimeout(() => { row.classList.remove('selected-row'); selectedRowTimer = null; }, 3500); }
