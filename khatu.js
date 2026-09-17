@@ -247,8 +247,8 @@ function closeNewCategoryDialog(){
 }
 function confirmNewCategory(){
   let name = document.getElementById('newCategoryInput').value.trim();
-  if(!name) return showBottomMessage("Category name lakho","error");
-  if(name === "All Categories" || name === NEW_CAT_LABEL) return showBottomMessage("Aa nam use na thai","error");
+  if(!name) return showBottomMessage("Please enter category name","error");
+  if(name === "All Categories" || name === NEW_CAT_LABEL) return showBottomMessage("This name cannot be used","error");
   name = name.charAt(0).toUpperCase() + name.slice(1);
   let custom = []; let hidden = [];
   try{
@@ -261,7 +261,7 @@ function confirmNewCategory(){
     fillCategorySelects();
     if(currentCategoryTarget) document.getElementById(currentCategoryTarget).value = name;
     closeNewCategoryDialog();
-    showBottomMessage(`"${name}" category pachi restore thai gai`, "success");
+    showBottomMessage(`"${name}" category restored successfully`, "success");
     renderExpenses(); renderFilterResults(); return;
   }
   if(getAllCategories().map(c=>c.toLowerCase()).includes(name.toLowerCase())){
@@ -272,7 +272,7 @@ function confirmNewCategory(){
   fillCategorySelects();
   if(currentCategoryTarget) document.getElementById(currentCategoryTarget).value = name;
   document.getElementById('newCategoryDialog')?.classList.remove('active');
-  showBottomMessage(`Category "${name}" is Created.`, "success");
+  showBottomMessage(`Category "${name}" created successfully`, "success");
   currentCategoryTarget = null;
   renderExpenses(); renderFilterResults();
 }
@@ -297,7 +297,7 @@ function openDeleteCategoryDialog(){
   box.style.background = "#dbeafe"; box.style.color = "#111"; box.style.borderColor = "#111";
   sel.innerHTML = ""; listDiv.innerHTML = "";
   let all = getAllCategoriesFiltered().filter(c => c!== 'Others');
-  if(all.length === 0) return showBottomMessage("Delete karva mate koi category nathi","error");
+  if(all.length === 0) return showBottomMessage("No category available to delete","error");
   all.forEach((c, idx) => {
     sel.add(new Option(c, c));
     let div = document.createElement('div');
@@ -340,7 +340,7 @@ async function confirmDeleteCategory(){
   }
   fillCategorySelects(); renderExpenses(); renderFilterResults();
   closeDeleteCategoryDialog();
-  showBottomMessage(`"${catToDelete}" Category and Records are Deleted.`, "success");
+  showBottomMessage(`"${catToDelete}" category and records deleted successfully`, "success");
 }
 
 // ---------- DOWNLOAD DIALOG ----------
@@ -524,7 +524,7 @@ function parseExpenseName(name) {
 // ---------- EXPENSE ----------
 async function loadExpenses() { expenses = await loadTable('expenses'); renderExpenses(); }
 async function addOrUpdateExpense() {
-  const user = await getCurrentUser(); if (!user) return showBottomMessage("Login nathi", "error");
+  const user = await getCurrentUser(); if (!user) return showBottomMessage("Please Login First", "error");
   const nameInput = document.getElementById('expName');
   let name = nameInput ? nameInput.value.trim() : "";
   const amountVal = document.getElementById('expAmount').value;
@@ -589,7 +589,7 @@ async function addOrUpdateExpense() {
         let idx = expenses.findIndex(e=>String(e.id)===String(tempId));
         if(idx>=0) expenses[idx] = data;
         clearFromTempMemory('expenses', tempId);
-        showBottomMessage(`Saved to Supabase - Memory cleared`, "success");
+        showBottomMessage(`Data add Successfully.`, "success");
       }
     }
   } catch(err){
@@ -713,8 +713,8 @@ async function addOrUpdateTransaction(){
   editTransactionId = null;
   btn.textContent = 'Done';
   setTimeout(()=>{ document.getElementById('txnFrom')?.focus(); }, 50);
-  if(isEdit) showBottomMessage("Transaction updated", "success");
-  else showBottomMessage("Transaction added (Temp memory)", "success");
+  if(isEdit) showBottomMessage("Data updated successfully", "success");
+  else showBottomMessage("Data added successfully", "success");
   try {
     if (isEdit) {
       const { error } = await supabaseClient.from('transactions').update({ payer: from, receiver: to, amount, date_iso: date }).eq('id', savedId).eq('user_id', user.id);
@@ -726,7 +726,7 @@ async function addOrUpdateTransaction(){
         let idx = transactions.findIndex(t=>String(t.id)===String(tempId));
         if(idx>=0) transactions[idx]=data;
         clearFromTempMemory('transactions', tempId);
-        showBottomMessage(`Saved to Supabase - Memory cleared`, "success");
+        showBottomMessage(`Transaction add Successfully.`, "success");
       }
     }
   } catch (err) { 
@@ -745,7 +745,7 @@ async function performDeleteTransaction(id){
   let backup = null;
   if(idx>=0){ backup = transactions[idx]; transactions.splice(idx,1); renderTransactions(); }
   if (String(editTransactionId) === String(id)) { editTransactionId = null; document.getElementById('txnDoneBtn').textContent = 'Done'; }
-  showBottomMessage("Transaction deleted", "success");
+  showBottomMessage("Data deleted successfully", "success");
   const ok = await deleteRow('transactions', id);
   if(!ok && backup){ transactions.splice(idx,0,backup); renderTransactions(); }
 }
@@ -1003,7 +1003,7 @@ async function addOrUpdateGroup(){
   setTimeout(()=>{ document.getElementById('grpPerson')?.focus(); }, 50);
 
   if(isEdit) showBottomMessage("Data updated successfully","success");
-  else showBottomMessage("Data added (Temp memory)","success");
+  else showBottomMessage("Data added successfully","success");
 
   // STEP 2: Background Supabase
   try{
@@ -1022,7 +1022,7 @@ async function addOrUpdateGroup(){
         let idx = groupRecords.findIndex(r=>String(r.id)===String(tempId));
         if(idx>=0) groupRecords[idx] = data[0];
         clearFromTempMemory('groups', tempId);
-        showBottomMessage("Saved to Supabase - Memory cleared","success");
+        showBottomMessage("Data add Successfully.","success");
       }
     }
   }catch(e){
@@ -1184,7 +1184,7 @@ async function confirmNewGroup(){
   fillGroupSelects();
   document.getElementById('grpGroup').value = name;
   document.getElementById('newGroupDialog')?.classList.remove('active');
-  showBottomMessage(`Group "${name}" Created`,"success");
+  showBottomMessage(`Group "${name}" created successfully`,"success");
   handleGroupChange();
 }
 
@@ -1255,7 +1255,7 @@ async function confirmDeleteGroup(){
   fillGroupSelects(); 
   renderGroups();
   closeDeleteGroupDialog();
-  showBottomMessage(`"${grpToDelete}" Group and Records Deleted`,"success");
+  showBottomMessage(`"${grpToDelete}" group and records deleted successfully`,"success");
 }
 
 // ---------- FILTER ----------
@@ -1654,7 +1654,7 @@ function downloadExpenseExcel(){
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href=url; a.download=`Daily_Expence_${monthLabel}_${yearVal}.csv`; a.click();
   }
-  showBottomMessage("Excel Downloaded", "success");
+  showBottomMessage("Excel downloaded successfully", "success");
 }
 
 function downloadTransactionPDF(){
